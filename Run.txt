@@ -1,0 +1,8 @@
+Run:
+mvn clean javafx:run
+
+clean and build:
+mvn clean install
+
+test:
+mvn test
