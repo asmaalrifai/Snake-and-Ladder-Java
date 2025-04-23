@@ -6,3 +6,7 @@ mvn clean install
 
 test:
 mvn test
+
+
+Tree:
+tree -L 2
