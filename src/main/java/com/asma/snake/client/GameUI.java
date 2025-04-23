@@ -13,14 +13,18 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
+import javafx.animation.TranslateTransition;
+import javafx.util.Duration;
+
+
 
 public class GameUI {
 
     private final GameManager gameManager;
     private final Label statusLabel = new Label();
     private final Label diceResult = new Label();
-    private final Circle player1Token = new Circle(15);
-    private final Circle player2Token = new Circle(15);
+    private final ImageView player1Token = new ImageView();
+    private final ImageView player2Token = new ImageView();
     private final Pane boardLayer = new Pane();
     private final Label player1PosLabel = new Label();
     private final Label player2PosLabel = new Label();
@@ -36,9 +40,21 @@ public class GameUI {
         boardView.setFitWidth(600);
         boardView.setFitHeight(600);
 
-        player1Token.setFill(Color.RED);
-        player2Token.setFill(Color.BLUE);
+        // player1Token.setFill(Color.RED);
+        // player2Token.setFill(Color.BLUE);
         boardLayer.getChildren().addAll(boardView, player1Token, player2Token);
+
+        // Pawns
+        Image tokenRed = new Image("tokens/Player_Red.png");
+        Image tokenBlue = new Image("tokens/Player_Blue.png");
+
+        player1Token.setImage(tokenRed);
+        player1Token.setFitWidth(40);
+        player1Token.setFitHeight(40);
+
+        player2Token.setImage(tokenBlue);
+        player2Token.setFitWidth(40);
+        player2Token.setFitHeight(40);
 
         // Player 1 controls
         Label player1Label = new Label("🔴 " + player1.getName());
@@ -119,26 +135,37 @@ public class GameUI {
     }
 
     private void updateTokens() {
-        updateTokenPosition(player1Token, gameManager.getPlayer1().getPosition());
-        updateTokenPosition(player2Token, gameManager.getPlayer2().getPosition());
+        animateTokenTo(player1Token, gameManager.getPlayer1().getPosition(), true);  // shift left
+        animateTokenTo(player2Token, gameManager.getPlayer2().getPosition(), false); // shift right
+    
         player1PosLabel.setText("Position: " + gameManager.getPlayer1().getPosition());
         player2PosLabel.setText("Position: " + gameManager.getPlayer2().getPosition());
-
     }
+    
 
-    private void updateTokenPosition(Circle token, int position) {
+    private void animateTokenTo(ImageView token, int position, boolean shiftLeft) {
         int cellSize = 60;
         int col = (position - 1) % 10;
         int row = (position - 1) / 10;
-
+    
         if ((row % 2) == 1) {
             col = 9 - col;
         }
-
-        double x = col * cellSize + cellSize / 2.0;
-        double y = (9 - row) * cellSize + cellSize / 2.0;
-
-        token.setLayoutX(x);
-        token.setLayoutY(y);
-    }
+    
+        double centerX = col * cellSize + cellSize / 2.0;
+        double centerY = (9 - row) * cellSize + cellSize / 2.0;
+    
+        double offset = 12;
+        double x = shiftLeft ? centerX - offset : centerX + offset;
+        double y = centerY;
+    
+        double targetX = x - token.getFitWidth() / 2;
+        double targetY = y - token.getFitHeight() / 2;
+    
+        // Create a transition to move to new location
+        TranslateTransition transition = new TranslateTransition(Duration.millis(400), token);
+        transition.setToX(targetX);
+        transition.setToY(targetY);
+        transition.play();
+    }    
 }

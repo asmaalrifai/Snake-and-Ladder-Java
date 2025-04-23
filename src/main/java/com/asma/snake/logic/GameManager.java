@@ -69,6 +69,10 @@ public class GameManager {
         return player2;
     }
 
+    public Board getBoard(){
+        return board;
+    }
+
     public void resetGame() {
         player1.moveTo(1);
         player2.moveTo(1);
