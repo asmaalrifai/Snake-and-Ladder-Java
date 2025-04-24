@@ -10,3 +10,16 @@ mvn test
 
 Tree:
 tree -L 2
+
+
+TestDice class for TestDiceto go back 
+
+
+GameManager.java
+this.dice = new TestDice();  // ✅ use your stable scenario
+to
+this.dice = new Dice();
+
+private final TestDice dice;  // ✅ use your stable scenario
+to
+private final Dice dice;
