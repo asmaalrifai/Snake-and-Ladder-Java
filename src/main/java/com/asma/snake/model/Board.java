@@ -29,7 +29,6 @@ public class Board {
         ladders.put(12, 32);
     }
     
-
     public int checkPosition(int position) {
         if (snakes.containsKey(position)) {
             return snakes.get(position);
@@ -38,5 +37,14 @@ public class Board {
             return ladders.get(position);
         }
         return position;
+    }
+    
+    // Add these getter methods
+    public Map<Integer, Integer> getSnakes() {
+        return snakes;
+    }
+    
+    public Map<Integer, Integer> getLadders() {
+        return ladders;
     }
 }
