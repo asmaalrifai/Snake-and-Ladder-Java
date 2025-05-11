@@ -28,4 +28,9 @@ private final Dice dice;
 start the server:
 java -cp target/classes com.asma.snake.server.GameServer
 
+run the chat:
+java -cp target/classes com.asma.snake.chat.ChatServer
 
+
+run all servers:
+java -cp target/classes com.asma.snake.server.ServerLauncher

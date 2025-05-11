@@ -133,12 +133,8 @@ public class GameUI {
         player2PosLabel.getStyleClass().add("position-label");
         player2PosLabel.setText("Position: 1");
 
-        // 7) Play Again
-        Button playAgain = new Button("🔄 Play Again");
-        playAgain.getStyleClass().add("play-again");
-        playAgain.setOnAction(e -> resetUI());
 
-        // 8) Turn timers
+        // 7) Turn timers
         timerCircle1 = createTimerCircle(diceImageView1);
         timerCircle2 = createTimerCircle(diceImageView2);
 
@@ -169,8 +165,7 @@ public class GameUI {
                 boardLayer,
                 diceResult,
                 statusLabel,
-                controls,
-                playAgain);
+                controls);
         root.setAlignment(Pos.CENTER);
         root.setBackground(Background.EMPTY);
 
@@ -180,7 +175,7 @@ public class GameUI {
         stage.setScene(scene);
         stage.show();
 
-        // 9) Network
+        // 8) Network
         net = new NetworkClient("localhost", 12345, this::handleServerMessage);
 
         // —— set up chat UI ——
@@ -222,27 +217,27 @@ public class GameUI {
             chatArea.appendText("Failed to connect chat\n");
         }
 
-        // 10) Start clocks
+        // 9) Start clocks
         startGameClock();
     }
 
-    private void resetUI() {
-        if (celebrationAnimation != null)
-            celebrationAnimation.stop();
-        gameManager.resetGame();
-        previousPlayer1Pos = previousPlayer2Pos = 1;
-        player1PosLabel.setText("Position: 1");
-        player2PosLabel.setText("Position: 1");
-        diceResult.setText("");
-        statusLabel.setText("");
-        diceImageView1.setImage(new Image(
-                getClass().getResource("/dice/red/dice1.png").toExternalForm()));
-        diceImageView2.setImage(new Image(
-                getClass().getResource("/dice/blue/dice1.png").toExternalForm()));
-        player1Roll.setDisable(true);
-        player2Roll.setDisable(true);
-        resetGameClock();
-    }
+    // private void resetUI() {
+    //     if (celebrationAnimation != null)
+    //         celebrationAnimation.stop();
+    //     gameManager.resetGame();
+    //     previousPlayer1Pos = previousPlayer2Pos = 1;
+    //     player1PosLabel.setText("Position: 1");
+    //     player2PosLabel.setText("Position: 1");
+    //     diceResult.setText("");
+    //     statusLabel.setText("");
+    //     diceImageView1.setImage(new Image(
+    //             getClass().getResource("/dice/red/dice1.png").toExternalForm()));
+    //     diceImageView2.setImage(new Image(
+    //             getClass().getResource("/dice/blue/dice1.png").toExternalForm()));
+    //     player1Roll.setDisable(true);
+    //     player2Roll.setDisable(true);
+    //     resetGameClock();
+    // }
 
     private void handleRoll(Player player) {
         if (isRolling)
