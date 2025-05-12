@@ -8,10 +8,9 @@ public class GameSession implements Runnable {
     private final GameManager gm;
 
     public GameSession(ClientHandler a, ClientHandler b) {
-        this.redHandler  = a;
+        this.redHandler = a;
         this.blueHandler = b;
-        // Create two Player objects matching the colors:
-        Player redPlayer  = new Player("Player 1", "red");
+        Player redPlayer = new Player("Player 1", "red");
         Player bluePlayer = new Player("Player 2", "blue");
         this.gm = new GameManager(redPlayer, bluePlayer);
     }
@@ -19,20 +18,17 @@ public class GameSession implements Runnable {
     @Override
     public void run() {
         try {
-            // Tell each client their color
+            System.out.println("[GameSession] Session started.");
             redHandler.send("MATCHED:red");
             blueHandler.send("MATCHED:blue");
+            Thread.sleep(500);
 
-            // Game loop
             while (!gm.checkWin()) {
-                // Whose turn?
                 Player current = gm.getCurrentPlayer();
-                ClientHandler turnHandler = current.getColor().equals("red")
-                                            ? redHandler : blueHandler;
+                ClientHandler turnHandler = current.getColor().equals("red") ? redHandler : blueHandler;
+                String currentColor = current.getColor();
 
-                turnHandler.send("TURN:" + current.getColor());
-
-                // Wait for ROLL:x
+                turnHandler.send("TURN:" + currentColor);
                 String line = turnHandler.receive();
                 if (line == null) break;
                 if (!line.startsWith("ROLL:")) continue;
@@ -40,20 +36,17 @@ public class GameSession implements Runnable {
                 int roll = Integer.parseInt(line.split(":", 2)[1]);
                 int dest = gm.movePlayer(roll);
 
-                // Broadcast the move
-                String moveMsg = "MOVE:" + current.getColor() + ":" + dest;
+                String moveMsg = "MOVE:" + currentColor + ":" + dest;
                 redHandler.send(moveMsg);
                 blueHandler.send(moveMsg);
 
-                // Check win
                 if (gm.checkWin()) {
-                    String winMsg = "WIN:" + current.getColor();
+                    String winMsg = "WIN:" + currentColor;
                     redHandler.send(winMsg);
                     blueHandler.send(winMsg);
                     break;
                 }
 
-                // Switch turn if needed
                 if (gm.shouldSwitchTurn(roll)) {
                     gm.switchTurn();
                 }
@@ -63,6 +56,7 @@ public class GameSession implements Runnable {
         } finally {
             redHandler.close();
             blueHandler.close();
+            System.out.println("[GameSession] Session ended.");
         }
     }
 }

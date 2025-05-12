@@ -19,6 +19,7 @@ public class ClientHandler implements Runnable {
             out.println("CONNECT");
             String msg;
             while ((msg = in.readLine()) != null) {
+                System.out.println("[ClientHandler] Received: " + msg);
                 if ("READY".equals(msg)) {
                     WaitingRoom.enqueue(this);
                     break;

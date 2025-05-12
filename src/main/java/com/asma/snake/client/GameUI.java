@@ -19,11 +19,10 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import com.asma.snake.chat.ChatClient;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Random;
 
 public class GameUI {
@@ -31,7 +30,6 @@ public class GameUI {
     private final GameManager gameManager;
     private final Label statusLabel = new Label();
     private final Label diceResult = new Label();
-    private final Label gameTimerLabel = new Label("⏱ 30:00");
     private final Label turnTimerLabel1 = new Label("⏳ 5s");
     private final Label turnTimerLabel2 = new Label("⏳ 5s");
 
@@ -49,22 +47,18 @@ public class GameUI {
 
     private int previousPlayer1Pos = 1, previousPlayer2Pos = 1;
 
-    private Timeline gameTimer, turnCountdown;
-    private int remainingSeconds = 30 * 60;
-
     private static final String RED_DICE_PATH = "dice/red/dice";
     private static final String BLUE_DICE_PATH = "dice/blue/dice";
 
-    private ParallelTransition celebrationAnimation;
     private Circle timerCircle1, timerCircle2;
 
     private final NetworkClient net;
-    private String yourColor; // “red” or “blue”
+    private String yourColor; 
     private final Button player1Roll;
     private final Button player2Roll;
-    private ChatClient chatClient;
-    private final TextArea chatArea = new TextArea();
-    private final TextField chatInput = new TextField();
+
+    private final Queue<String> earlyMessages = new LinkedList<>();
+    private boolean isReady = false;
 
     public GameUI(Stage stage) {
         // 1) Game logic
@@ -133,7 +127,6 @@ public class GameUI {
         player2PosLabel.getStyleClass().add("position-label");
         player2PosLabel.setText("Position: 1");
 
-
         // 7) Turn timers
         timerCircle1 = createTimerCircle(diceImageView1);
         timerCircle2 = createTimerCircle(diceImageView2);
@@ -156,12 +149,11 @@ public class GameUI {
 
         statusLabel.getStyleClass().add("status-label");
         diceResult.getStyleClass().add("dice-result");
-        gameTimerLabel.getStyleClass().add("timer-label");
+        // gameTimerLabel.getStyleClass().add("timer-label");
         turnTimerLabel1.getStyleClass().add("turn-timer");
         turnTimerLabel2.getStyleClass().add("turn-timer");
 
         VBox root = new VBox(15,
-                gameTimerLabel,
                 boardLayer,
                 diceResult,
                 statusLabel,
@@ -173,71 +165,20 @@ public class GameUI {
         scene.getStylesheets().add("style.css");
         stage.setTitle("🐍 Snake and Ladder 🪜");
         stage.setScene(scene);
+        isReady = true;
+        while (!earlyMessages.isEmpty()) {
+            processServerMessage(earlyMessages.poll());
+        }
+
         stage.show();
 
         // 8) Network
-        net = new NetworkClient("localhost", 12345, this::handleServerMessage);
+        System.out.println("Connecting to game server...");
+        net = new NetworkClient("54.194.93.132", 12345, this::handleServerMessage);
+        System.out.println("Sending READY...");
+        net.send("READY");
 
-        // —— set up chat UI ——
-        chatArea.setEditable(false);
-        chatArea.setPrefRowCount(5);
-        chatInput.setPromptText("Type a message…");
-        Button sendBtn = new Button("Send");
-        sendBtn.getStyleClass().add("chat-send");
-        sendBtn.setOnAction(e -> {
-            String text = chatInput.getText().trim();
-            if (!text.isEmpty()) {
-                // prefix with yourColor so clients know who said it
-                chatClient.send("CHAT:" + yourColor + ":" + text);
-                chatInput.clear();
-            }
-        });
-
-        // layout it below your game controls
-        VBox chatBox = new VBox(5,
-                new Label("Chat"),
-                chatArea,
-                new HBox(5, chatInput, sendBtn));
-        chatBox.setMaxWidth(400);
-        chatBox.setAlignment(Pos.CENTER);
-
-        // assume your root VBox is called `root`:
-        root.getChildren().add(chatBox);
-
-        // —— connect the chat client ——
-        try {
-            chatClient = new ChatClient(
-                    "localhost", // or your server’s IP
-                    12346, // ChatServer port
-                    msg -> Platform.runLater(() -> {
-                        chatArea.appendText(msg + "\n");
-                    }));
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            chatArea.appendText("Failed to connect chat\n");
-        }
-
-        // 9) Start clocks
-        startGameClock();
     }
-
-    // private void resetUI() {
-    //     if (celebrationAnimation != null)
-    //         celebrationAnimation.stop();
-    //     gameManager.resetGame();
-    //     previousPlayer1Pos = previousPlayer2Pos = 1;
-    //     player1PosLabel.setText("Position: 1");
-    //     player2PosLabel.setText("Position: 1");
-    //     diceResult.setText("");
-    //     statusLabel.setText("");
-    //     diceImageView1.setImage(new Image(
-    //             getClass().getResource("/dice/red/dice1.png").toExternalForm()));
-    //     diceImageView2.setImage(new Image(
-    //             getClass().getResource("/dice/blue/dice1.png").toExternalForm()));
-    //     player1Roll.setDisable(true);
-    //     player2Roll.setDisable(true);
-    //     resetGameClock();
-    // }
 
     private void handleRoll(Player player) {
         if (isRolling)
@@ -265,11 +206,19 @@ public class GameUI {
     }
 
     private void handleServerMessage(String msg) {
-        if (msg.startsWith("CHAT:")) {
-            // we already broadcast raw "CHAT:color:message"
-            // and chatClient does the UI update.
+        System.out.println("Server said: " + msg);
+        if (!isReady) {
+            earlyMessages.add(msg); // queue until setup complete
             return;
         }
+
+        processServerMessage(msg);
+    }
+
+    private void processServerMessage(String msg) {
+        if (msg.startsWith("CHAT:"))
+            return; // ignore chat messages
+
         Platform.runLater(() -> {
             String[] parts = msg.split(":", 3);
             switch (parts[0]) {
@@ -281,25 +230,22 @@ public class GameUI {
                     boolean myTurn = yourColor.equals(parts[1]);
                     player1Roll.setDisable(!(myTurn && "red".equals(yourColor)));
                     player2Roll.setDisable(!(myTurn && "blue".equals(yourColor)));
-                    statusLabel.setText("Turn: " + parts[1]);
+                    statusLabel.setText("You are: " + parts[1]);
                     isRolling = false;
                     break;
                 case "MOVE":
                     String color = parts[1];
                     int newPos = Integer.parseInt(parts[2]);
-                    // animate from previous to new
                     if (color.equals("red")) {
-                        animateMovement(gameManager.getPlayer1(),
-                                previousPlayer1Pos, newPos, () -> {
-                                    previousPlayer1Pos = newPos;
-                                    player1PosLabel.setText("Position: " + newPos);
-                                });
+                        animateMovement(gameManager.getPlayer1(), previousPlayer1Pos, newPos, () -> {
+                            previousPlayer1Pos = newPos;
+                            player1PosLabel.setText("Position: " + newPos);
+                        });
                     } else {
-                        animateMovement(gameManager.getPlayer2(),
-                                previousPlayer2Pos, newPos, () -> {
-                                    previousPlayer2Pos = newPos;
-                                    player2PosLabel.setText("Position: " + newPos);
-                                });
+                        animateMovement(gameManager.getPlayer2(), previousPlayer2Pos, newPos, () -> {
+                            previousPlayer2Pos = newPos;
+                            player2PosLabel.setText("Position: " + newPos);
+                        });
                     }
                     break;
                 case "WIN":
@@ -410,28 +356,5 @@ public class GameUI {
         c.setCenterX(dice.getFitWidth() / 2);
         c.setCenterY(dice.getFitHeight() / 2);
         return c;
-    }
-
-    private void startGameClock() {
-        gameTimer = new Timeline(new KeyFrame(
-                Duration.seconds(1), e -> {
-                    remainingSeconds--;
-                    int m = remainingSeconds / 60, s = remainingSeconds % 60;
-                    gameTimerLabel.setText(
-                            "⏱ " + String.format("%02d:%02d", m, s));
-                    if (remainingSeconds <= 0) {
-                        gameTimer.stop();
-                        statusLabel.setText("⏰ Time's up! Game Over.");
-                    }
-                }));
-        gameTimer.setCycleCount(Animation.INDEFINITE);
-        gameTimer.play();
-    }
-
-    private void resetGameClock() {
-        if (gameTimer != null)
-            gameTimer.stop();
-        remainingSeconds = 30 * 60;
-        startGameClock();
     }
 }
