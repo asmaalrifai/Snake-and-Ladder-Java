@@ -49,6 +49,8 @@ public class GameUI {
     private final Queue<String> earlyMessages = new LinkedList<>();
     private boolean isReady = false;
 
+    private final Button playAgainButton = new Button("Play Again");
+
     public GameUI(Stage stage) {
         // 1) Game logic
         Player p1 = new Player("Player 1", "red");
@@ -99,12 +101,12 @@ public class GameUI {
         boardLayer.getChildren().addAll(boardView, player1Token, player2Token);
 
         // 6) Labels
-        Label lbl1 = new Label("🔴 " + p1.getName());
+        Label lbl1 = new Label("Red " + p1.getName());
         lbl1.getStyleClass().addAll("player-label", "player1-label");
         player1PosLabel.getStyleClass().add("position-label");
         player1PosLabel.setText("Position: 1");
 
-        Label lbl2 = new Label("🔵 " + p2.getName());
+        Label lbl2 = new Label("Blue " + p2.getName());
         lbl2.getStyleClass().addAll("player-label", "player2-label");
         player2PosLabel.getStyleClass().add("position-label");
         player2PosLabel.setText("Position: 1");
@@ -136,6 +138,7 @@ public class GameUI {
                 boardLayer,
                 diceResult,
                 statusLabel,
+                playAgainButton,
                 controls);
 
         root.setAlignment(Pos.CENTER);
@@ -154,6 +157,7 @@ public class GameUI {
         // Place tokens on tile 1 at game start
         placeTokenAt(1, player1Token, true); // red
         placeTokenAt(1, player2Token, false); // blue
+        playAgainButton.getStyleClass().add("play-again-button");
 
         // 8) Network
         System.out.println("Connecting to game server...");
@@ -161,6 +165,13 @@ public class GameUI {
         net = new NetworkClient("localhost", 40000, this::handleServerMessage);
         System.out.println("Sending READY...");
         net.send("READY");
+
+        playAgainButton.setVisible(false); // hidden at start
+        playAgainButton.setOnAction(e -> {
+            net.send("REPLAY");
+            playAgainButton.setVisible(false);
+            statusLabel.setText("Waiting for another player...");
+        });
 
         // if a player exit the game
         stage.setOnCloseRequest(e -> {
@@ -186,7 +197,7 @@ public class GameUI {
             ImageView dv = player.getColor().equals("red") ? diceImageView1 : diceImageView2;
             dv.setImage(new Image(getClass().getResource(frame).toExternalForm()));
             diceResult.setText(
-                    (player.getColor().equals("red") ? "🔴" : "🔵") +
+                    (player.getColor().equals("red") ? "Red" : "Blue") +
                             " rolled: " + simulatedRoll);
         });
 
@@ -230,7 +241,7 @@ public class GameUI {
                     ImageView targetDiceView = rollColor.equals("red") ? diceImageView1 : diceImageView2;
                     String imagePath = (rollColor.equals("red") ? RED_DICE_PATH : BLUE_DICE_PATH) + value + ".png";
                     targetDiceView.setImage(new Image(getClass().getResource("/" + imagePath).toExternalForm()));
-                    diceResult.setText((rollColor.equals("red") ? "🔴" : "🔵") + " rolled: " + value);
+                    diceResult.setText((rollColor.equals("red") ? "Red" : "Blue") + " rolled: " + value);
                     break;
 
                 case "MOVE":
@@ -256,7 +267,9 @@ public class GameUI {
 
                 case "GAME_OVER":
                     String winner = parts[1];
-                    showReplayDialog(winner);
+                    statusLabel.setText(winner + " wins!");
+                    playAgainButton.setVisible(true);
+
                     break;
 
             }
@@ -281,26 +294,6 @@ public class GameUI {
         statusLabel.setText("");
 
         gameManager.resetGame();
-    }
-
-    private void showReplayDialog(String winner) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Game Over");
-            alert.setHeaderText(winner + " wins!");
-            alert.setContentText("Play again?");
-
-            ButtonType yes = new ButtonType("Yes");
-            ButtonType no = new ButtonType("No");
-            alert.getButtonTypes().setAll(yes, no);
-
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == yes) {
-                net.send("REPLAY");
-            } else {
-                net.send("QUIT");
-            }
-        });
     }
 
     private void animateMovement(Player player, int start, int end, Runnable onFinished) {
