@@ -1,0 +1,36 @@
+Run:
+mvn clean javafx:run
+
+clean and build (update dependency):
+mvn clean install
+
+test:
+mvn test
+
+
+Tree:
+tree -L 2
+
+
+TestDice class for TestDiceto go back 
+
+
+GameManager.java
+this.dice = new TestDice();  // ✅ use your stable scenario
+to
+this.dice = new Dice();
+
+private final TestDice dice;  // ✅ use your stable scenario
+to
+private final Dice dice;
+
+
+start the server:
+java -cp target/classes com.asma.snake.server.GameServer
+
+run the chat:
+java -cp target/classes com.asma.snake.chat.ChatServer
+
+
+run all servers:
+java -cp target/classes com.asma.snake.server.ServerLauncher

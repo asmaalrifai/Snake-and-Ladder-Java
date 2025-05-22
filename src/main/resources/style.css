@@ -1,0 +1,142 @@
+.root {
+    -fx-background-color: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d);
+}
+
+.board-layer {
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 20, 0, 0, 0);
+}
+
+.token {
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 10, 0, 0, 0);
+}
+
+.status-label {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 5, 0, 0, 1);
+}
+
+.dice-result {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 3, 0, 0, 1);
+}
+
+.player-box {
+    -fx-background-color: rgba(255, 255, 255, 0.2);
+    -fx-background-radius: 10;
+    -fx-padding: 15;
+    -fx-border-radius: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-width: 2;
+}
+
+.player-label {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.player1-label {
+    -fx-text-fill: #ff6b6b;
+}
+
+.player2-label {
+    -fx-text-fill: #4cc9f0;
+}
+
+.position-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: white;
+}
+
+.roll-button {
+    -fx-background-color: linear-gradient(to bottom, #4facfe, #00f2fe);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 8 15;
+    -fx-background-radius: 20;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 1);
+    -fx-cursor: hand;
+}
+
+.roll-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #3a7bd5, #00d2ff);
+}
+
+.roll-button:disabled {
+    -fx-background-color: #cccccc;
+    -fx-text-fill: #666666;
+}
+
+.play-again {
+    -fx-background-color: linear-gradient(to bottom, #a8ff78, #78ffd6);
+    -fx-text-fill: #333333;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
+    -fx-padding: 10 20;
+    -fx-background-radius: 25;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 1);
+}
+
+.play-again:hover {
+    -fx-background-color: linear-gradient(to bottom, #76ff7a, #5efce8);
+}
+
+.timer-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.turn-timer {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.dice-image {
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 5, 0, 0, 1);
+}
+
+.snake-effect {
+    -fx-fill: radial-gradient(center 50% 50%, radius 50%, #ff0000, #990000);
+    -fx-opacity: 0.7;
+}
+
+.ladder-effect {
+    -fx-fill: radial-gradient(center 50% 50%, radius 50%, #00ff00, #009900);
+    -fx-opacity: 0.7;
+}
+
+.timer-circle {
+    -fx-stroke: #4CAF50;
+    -fx-stroke-width: 4;
+    -fx-stroke-line-cap: round;
+    -fx-fill: transparent;
+}
+
+.timer-circle.warning {
+    -fx-stroke: #FF9800;
+}
+
+.timer-circle.critical {
+    -fx-stroke: #F44336;
+}
+
+.timer-circle {
+    -fx-stroke: #FFD700; /* Gold color */
+    -fx-stroke-width: 4;
+    -fx-stroke-line-cap: round;
+    -fx-fill: transparent;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 2, 0.5, 0, 0);
+}
+
+.timer-circle.warning {
+    -fx-stroke: #FFA500; /* Orange */
+}
+
+.timer-circle.critical {
+    -fx-stroke: #FF4500; /* Red-Orange */
+}
