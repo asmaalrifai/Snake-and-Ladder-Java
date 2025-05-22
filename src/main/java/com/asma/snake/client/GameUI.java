@@ -174,7 +174,11 @@ public class GameUI {
 
         // if a player exit the game
         stage.setOnCloseRequest(e -> {
-            net.close();
+            e.consume(); // 🔒 prevent default close
+
+            net.send("EXIT"); // 📤 inform server (and the other client)
+            net.close(); // 🔌 close socket
+            Platform.exit(); // 🧹 close the app
         });
 
     }

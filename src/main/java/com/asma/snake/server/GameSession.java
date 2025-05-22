@@ -2,11 +2,15 @@ package com.asma.snake.server;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.concurrent.*;
 
 import com.asma.snake.logic.GameManager;
 import com.asma.snake.model.Player;
 
 public class GameSession implements Runnable {
+
+    private final BlockingQueue<String> redQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<String> blueQueue = new LinkedBlockingQueue<>();
     private final ClientHandler redHandler, blueHandler;
     private final GameManager gm;
 
@@ -26,55 +30,66 @@ public class GameSession implements Runnable {
             blueHandler.send("MATCHED:blue");
             Thread.sleep(500);
 
+            // Start listeners
+            new Thread(() -> listenToClient(redHandler, redQueue)).start();
+            new Thread(() -> listenToClient(blueHandler, blueQueue)).start();
+
             while (!gm.checkWin()) {
                 Player current = gm.getCurrentPlayer();
-                ClientHandler turnHandler = current.getColor().equals("red") ? redHandler : blueHandler;
-                ClientHandler opponentHandler = turnHandler == redHandler ? blueHandler : redHandler;
+                ClientHandler currentHandler = current.getColor().equals("red") ? redHandler : blueHandler;
+                ClientHandler opponentHandler = currentHandler == redHandler ? blueHandler : redHandler;
+                BlockingQueue<String> currentQueue = (currentHandler == redHandler) ? redQueue : blueQueue;
+                BlockingQueue<String> opponentQueue = (currentHandler == redHandler) ? blueQueue : redQueue;
 
-                turnHandler.send("TURN:" + current.getColor());
+                currentHandler.send("TURN:" + current.getColor());
 
-                String line;
-                try {
-                    line = turnHandler.receive();
-                } catch (IOException e) {
-                    opponentHandler.send("EXIT");
-                    break;
-                }
+                // Keep polling until a valid ROLL or EXIT received
+                while (true) {
+                    // Check for EXIT from opponent
+                    String opponentMsg = opponentQueue.poll(100, TimeUnit.MILLISECONDS);
+                    if ("EXIT".equals(opponentMsg)) {
+                        currentHandler.send("EXIT");
+                        return;
+                    }
 
-                if (line == null || line.equals("EXIT")) {
-                    opponentHandler.send("EXIT");
-                    break;
-                }
+                    // Check if current player has sent a message
+                    String msg = currentQueue.poll(100, TimeUnit.MILLISECONDS);
+                    if (msg == null)
+                        continue;
 
-                if (!line.startsWith("ROLL:"))
-                    continue;
+                    if ("EXIT".equals(msg)) {
+                        opponentHandler.send("EXIT");
+                        return;
+                    }
 
-                int roll = Integer.parseInt(line.split(":", 2)[1]);
+                    if (!msg.startsWith("ROLL:"))
+                        continue;
 
-                // Broadcast roll and move
-                String rollMsg = "ROLL:" + current.getColor() + ":" + roll;
-                redHandler.send(rollMsg);
-                blueHandler.send(rollMsg);
+                    int roll = Integer.parseInt(msg.split(":", 2)[1]);
 
-                int dest = gm.movePlayer(roll);
-                String moveMsg = "MOVE:" + current.getColor() + ":" + dest;
-                redHandler.send(moveMsg);
-                blueHandler.send(moveMsg);
+                    String rollMsg = "ROLL:" + current.getColor() + ":" + roll;
+                    redHandler.send(rollMsg);
+                    blueHandler.send(rollMsg);
 
-                if (gm.checkWin()) {
-                    String winMsg = "WIN:" + current.getColor();
-                    redHandler.send(winMsg);
-                    blueHandler.send(winMsg);
-                    break;
-                }
+                    int dest = gm.movePlayer(roll);
+                    String moveMsg = "MOVE:" + current.getColor() + ":" + dest;
+                    redHandler.send(moveMsg);
+                    blueHandler.send(moveMsg);
 
-                if (gm.shouldSwitchTurn(roll)) {
-                    gm.switchTurn();
+                    if (gm.checkWin()) {
+                        String winMsg = "WIN:" + current.getColor();
+                        redHandler.send(winMsg);
+                        blueHandler.send(winMsg);
+                        return;
+                    }
+
+                    if (gm.shouldSwitchTurn(roll)) {
+                        gm.switchTurn();
+                    }
+
+                    break; // Done processing this turn
                 }
             }
-
-            redHandler.close();
-            blueHandler.close();
 
         } catch (Exception e) {
             if (e instanceof SocketException) {
@@ -84,8 +99,22 @@ public class GameSession implements Runnable {
             }
         } finally {
             System.out.println("[GameSession] Session ended.");
+            redHandler.close();
+            blueHandler.close();
         }
-
     }
 
+    private void listenToClient(ClientHandler handler, BlockingQueue<String> queue) {
+        try {
+            String msg;
+            while ((msg = handler.receive()) != null) {
+                queue.put(msg);
+            }
+        } catch (IOException | InterruptedException e) {
+            try {
+                queue.put("EXIT");
+            } catch (InterruptedException ignored) {
+            }
+        }
+    }
 }

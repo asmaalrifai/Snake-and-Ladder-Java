@@ -28,22 +28,15 @@ public class GameManager {
     }
 
     public int movePlayer(int rollValue) {
-        if (!currentPlayer.hasStarted()) {
-            if (rollValue == 6) {
-                currentPlayer.setStarted(true); // They can start now
-            } else {
-                return currentPlayer.getPosition(); // They stay at position 1
-            }
-        } else {
-            int nextPosition = currentPlayer.getPosition() + rollValue;
-            if (nextPosition > 100) {
-                // Must land exactly on 100
-                return currentPlayer.getPosition();
-            }
-            currentPlayer.moveTo(nextPosition);
-            int finalPos = board.checkPosition(currentPlayer.getPosition());
-            currentPlayer.moveTo(finalPos);
+        int nextPosition = currentPlayer.getPosition() + rollValue;
+        if (nextPosition > 100) {
+            // Must land exactly on 100
+            return currentPlayer.getPosition();
         }
+
+        currentPlayer.moveTo(nextPosition);
+        int finalPos = board.checkPosition(currentPlayer.getPosition());
+        currentPlayer.moveTo(finalPos);
         return currentPlayer.getPosition();
     }
 
@@ -75,8 +68,7 @@ public class GameManager {
     public void resetGame() {
         player1.moveTo(1);
         player2.moveTo(1);
-        player1.setStarted(false);
-        player2.setStarted(false);
         currentPlayer = player1;
     }
+
 }
