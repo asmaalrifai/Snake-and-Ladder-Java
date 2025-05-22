@@ -126,33 +126,20 @@
     -fx-opacity: 0.7;
 }
 
-.timer-circle {
-    -fx-stroke: #4CAF50;
-    -fx-stroke-width: 4;
-    -fx-stroke-line-cap: round;
-    -fx-fill: transparent;
+
+.exit-button {
+    -fx-background-color: #ff4d4d;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 16px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+.exit-button:hover {
+    -fx-background-color: #cc0000;
 }
 
-.timer-circle.warning {
-    -fx-stroke: #FF9800;
-}
-
-.timer-circle.critical {
-    -fx-stroke: #F44336;
-}
-
-.timer-circle {
-    -fx-stroke: #FFD700; /* Gold color */
-    -fx-stroke-width: 4;
-    -fx-stroke-line-cap: round;
-    -fx-fill: transparent;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 2, 0.5, 0, 0);
-}
-
-.timer-circle.warning {
-    -fx-stroke: #FFA500; /* Orange */
-}
-
-.timer-circle.critical {
-    -fx-stroke: #FF4500; /* Red-Orange */
+.exit-message {
+    -fx-text-fill: red;
+    -fx-font-weight: bold;
 }

@@ -1,4 +1,4 @@
-package com.asma.snake.server;
+    package com.asma.snake.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -15,3 +15,4 @@ public class GameServer {
         }
     }
 }
+    

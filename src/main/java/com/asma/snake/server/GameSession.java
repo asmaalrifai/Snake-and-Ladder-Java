@@ -1,5 +1,8 @@
 package com.asma.snake.server;
 
+import java.io.IOException;
+import java.net.SocketException;
+
 import com.asma.snake.logic.GameManager;
 import com.asma.snake.model.Player;
 
@@ -26,30 +29,40 @@ public class GameSession implements Runnable {
             while (!gm.checkWin()) {
                 Player current = gm.getCurrentPlayer();
                 ClientHandler turnHandler = current.getColor().equals("red") ? redHandler : blueHandler;
-                String currentColor = current.getColor();
+                ClientHandler opponentHandler = turnHandler == redHandler ? blueHandler : redHandler;
 
-                turnHandler.send("TURN:" + currentColor);
-                String line = turnHandler.receive();
-                if (line == null)
+                turnHandler.send("TURN:" + current.getColor());
+
+                String line;
+                try {
+                    line = turnHandler.receive();
+                } catch (IOException e) {
+                    opponentHandler.send("EXIT");
                     break;
+                }
+
+                if (line == null || line.equals("EXIT")) {
+                    opponentHandler.send("EXIT");
+                    break;
+                }
+
                 if (!line.startsWith("ROLL:"))
                     continue;
 
                 int roll = Integer.parseInt(line.split(":", 2)[1]);
 
-                // Broadcast roll
-                String rollMsg = "ROLL:" + currentColor + ":" + roll;
+                // Broadcast roll and move
+                String rollMsg = "ROLL:" + current.getColor() + ":" + roll;
                 redHandler.send(rollMsg);
                 blueHandler.send(rollMsg);
 
-                // Move player
                 int dest = gm.movePlayer(roll);
-                String moveMsg = "MOVE:" + currentColor + ":" + dest;
+                String moveMsg = "MOVE:" + current.getColor() + ":" + dest;
                 redHandler.send(moveMsg);
                 blueHandler.send(moveMsg);
 
                 if (gm.checkWin()) {
-                    String winMsg = "WIN:" + currentColor;
+                    String winMsg = "WIN:" + current.getColor();
                     redHandler.send(winMsg);
                     blueHandler.send(winMsg);
                     break;
@@ -60,34 +73,19 @@ public class GameSession implements Runnable {
                 }
             }
 
-            // Ask for Replay after WIN
-            redHandler.send("GAME_OVER:" + gm.getCurrentPlayer().getColor());
-            blueHandler.send("GAME_OVER:" + gm.getCurrentPlayer().getColor());
-
-            String redResponse = redHandler.receive();
-            String blueResponse = blueHandler.receive();
-
-            if ("REPLAY".equalsIgnoreCase(redResponse)) {
-                System.out.println("[GameSession] Red wants to replay.");
-                WaitingRoom.enqueue(redHandler);
-            } else {
-                System.out.println("[GameSession] Red quit.");
-                redHandler.close();
-            }
-
-            if ("REPLAY".equalsIgnoreCase(blueResponse)) {
-                System.out.println("[GameSession] Blue wants to replay.");
-                WaitingRoom.enqueue(blueHandler);
-            } else {
-                System.out.println("[GameSession] Blue quit.");
-                blueHandler.close();
-            }
+            redHandler.close();
+            blueHandler.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            if (e instanceof SocketException) {
+                System.out.println("[GameSession] Player disconnected.");
+            } else {
+                e.printStackTrace();
+            }
         } finally {
             System.out.println("[GameSession] Session ended.");
         }
+
     }
 
 }

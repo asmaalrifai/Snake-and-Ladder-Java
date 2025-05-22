@@ -18,14 +18,11 @@ public class ClientHandler implements Runnable {
         try {
             setupStreams();
             out.println("CONNECT");
+
             String msg;
             while ((msg = in.readLine()) != null) {
                 System.out.println("[ClientHandler] Received: " + msg);
-                if ("QUIT".equalsIgnoreCase(msg)) {
-                    System.out.println("[ClientHandler] Client quit before match.");
-                    close();
-                    return;
-                } else if ("READY".equalsIgnoreCase(msg)) {
+                if ("READY".equalsIgnoreCase(msg)) {
                     if (!isClosed()) {
                         WaitingRoom.enqueue(this);
                     }
@@ -47,6 +44,7 @@ public class ClientHandler implements Runnable {
         out.println(message);
     }
 
+    // ✅ this method should stay outside the run() method
     public String receive() throws IOException {
         return in.readLine();
     }
@@ -58,9 +56,10 @@ public class ClientHandler implements Runnable {
     public void close() {
         closed = true;
         try {
-            socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException ignored) {
         }
     }
 }

@@ -41,15 +41,13 @@ public class GameUI {
     private static final String RED_DICE_PATH = "dice/red/dice";
     private static final String BLUE_DICE_PATH = "dice/blue/dice";
 
-    private final NetworkClient net;
+    private NetworkClient net;
     private String yourColor;
     private final Button player1Roll;
     private final Button player2Roll;
 
     private final Queue<String> earlyMessages = new LinkedList<>();
     private boolean isReady = false;
-
-    private final Button playAgainButton = new Button("Play Again");
 
     public GameUI(Stage stage) {
         // 1) Game logic
@@ -134,12 +132,21 @@ public class GameUI {
         statusLabel.getStyleClass().add("status-label");
         diceResult.getStyleClass().add("dice-result");
 
+        // Exit button
+        Button exitButton = new Button("Exit");
+        exitButton.getStyleClass().add("exit-button");
+        exitButton.setOnAction(e -> {
+            net.send("EXIT"); // Notify the server
+            net.close(); // Close client socket
+            Platform.exit(); // Close window
+        });
+
         VBox root = new VBox(15,
                 boardLayer,
                 diceResult,
                 statusLabel,
-                playAgainButton,
-                controls);
+                controls,
+                exitButton);
 
         root.setAlignment(Pos.CENTER);
         root.setBackground(Background.EMPTY);
@@ -157,7 +164,6 @@ public class GameUI {
         // Place tokens on tile 1 at game start
         placeTokenAt(1, player1Token, true); // red
         placeTokenAt(1, player2Token, false); // blue
-        playAgainButton.getStyleClass().add("play-again-button");
 
         // 8) Network
         System.out.println("Connecting to game server...");
@@ -166,17 +172,8 @@ public class GameUI {
         System.out.println("Sending READY...");
         net.send("READY");
 
-        playAgainButton.setVisible(false); // hidden at start
-        playAgainButton.setOnAction(e -> {
-            net.send("REPLAY");
-            playAgainButton.setVisible(false);
-            statusLabel.setText("Waiting for another player...");
-        });
-
         // if a player exit the game
         stage.setOnCloseRequest(e -> {
-            System.out.println("[Client] Window closed, sending QUIT...");
-            net.send("QUIT");
             net.close();
         });
 
@@ -268,8 +265,13 @@ public class GameUI {
                 case "GAME_OVER":
                     String winner = parts[1];
                     statusLabel.setText(winner + " wins!");
-                    playAgainButton.setVisible(true);
 
+                    break;
+                case "EXIT":
+                    statusLabel.setText("Your opponent has exited. Game over.");
+                    statusLabel.getStyleClass().add("exit-message");
+                    player1Roll.setDisable(true);
+                    player2Roll.setDisable(true);
                     break;
 
             }

@@ -1,4 +1,4 @@
-package com.asma.snake.client;
+    package com.asma.snake.client;
 
 import java.io.*;
 import java.net.Socket;
@@ -41,3 +41,4 @@ public class NetworkClient {
   }
 
 }
+    
