@@ -127,6 +127,8 @@ public class GameUI {
         HBox controls = new HBox(20, box2, box1);
         controls.setAlignment(Pos.CENTER);
 
+        statusLabel.setText("Waiting for another player...");
+
         statusLabel.getStyleClass().add("status-label");
         diceResult.getStyleClass().add("dice-result");
 
@@ -135,6 +137,7 @@ public class GameUI {
                 diceResult,
                 statusLabel,
                 controls);
+
         root.setAlignment(Pos.CENTER);
         root.setBackground(Background.EMPTY);
 
@@ -209,6 +212,9 @@ public class GameUI {
                     yourColor = parts[1];
                     statusLabel.setText("Matched! You are: " + yourColor);
                     startGame();
+                    if ("blue".equals(yourColor)) {
+                        statusLabel.setText("You are: blue, Opponent's turn...");
+                    }
                     break;
 
                 case "TURN":
