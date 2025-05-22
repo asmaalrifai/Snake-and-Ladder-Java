@@ -2,7 +2,6 @@ package com.asma.snake.client;
 
 import com.asma.snake.logic.GameManager;
 import com.asma.snake.model.Player;
-import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -15,7 +14,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Queue;
@@ -150,6 +148,9 @@ public class GameUI {
         }
 
         stage.show();
+        // Place tokens on tile 1 at game start
+        placeTokenAt(1, player1Token, true); // red
+        placeTokenAt(1, player2Token, false); // blue
 
         // 8) Network
         System.out.println("Connecting to game server...");
@@ -264,10 +265,8 @@ public class GameUI {
         player2PosLabel.setText("Position: 1");
 
         // Reset tokens to position 1
-        player1Token.setTranslateX(0);
-        player1Token.setTranslateY(0);
-        player2Token.setTranslateX(0);
-        player2Token.setTranslateY(0);
+        placeTokenAt(1, player1Token, true);
+        placeTokenAt(1, player2Token, false);
 
         // Reset dice
         diceImageView1.setImage(new Image(getClass().getResource("/dice/red/dice1.png").toExternalForm()));
@@ -299,85 +298,42 @@ public class GameUI {
     }
 
     private void animateMovement(Player player, int start, int end, Runnable onFinished) {
-        ImageView token = player.getColor().equals("red")
-                ? player1Token
-                : player2Token;
+        ImageView token = player.getColor().equals("red") ? player1Token : player2Token;
         boolean isP1 = player.getColor().equals("red");
-        SequentialTransition seq = new SequentialTransition();
-        for (int i = 1; i <= end - start; i++) {
-            int step = start + i;
-            seq.getChildren().add(
-                    createStepTransition(token, step, isP1, i == end - start));
-            if (i < end - start)
-                seq.getChildren().add(
-                        new PauseTransition(Duration.millis(100)));
-        }
-        seq.setOnFinished(e -> {
-            Integer top = gameManager.getBoard().getLadders().get(end);
-            if (top != null) {
-                TranslateTransition climb = createStraightLineTransition(token, end, top);
-                climb.setOnFinished(ev -> onFinished.run());
-                climb.play();
-            } else {
-                onFinished.run();
-            }
-        });
-        seq.play();
-
-    }
-
-    private TranslateTransition createStepTransition(
-            ImageView token, int pos, boolean isP1, boolean last) {
         int size = 60;
-        int col = (pos - 1) % 10, row = (pos - 1) / 10;
+
+        int col = (end - 1) % 10;
+        int row = (end - 1) / 10;
         if (row % 2 == 1)
             col = 9 - col;
-        double cx = col * size + size / 2.0, cy = (9 - row) * size + size / 2.0;
-        double off = 15, x = (isP1 ? cx - off : cx + off), y = cy;
-        double tx = x - token.getFitWidth() / 2, ty = y - token.getFitHeight() / 2;
-        TranslateTransition t = new TranslateTransition(
-                Duration.millis(150), token);
-        t.setToX(tx);
-        t.setToY(ty);
-        if (last) {
-            t.setOnFinished(evt -> {
-                ScaleTransition b = new ScaleTransition(
-                        Duration.millis(100), token);
-                b.setToX(1.2);
-                b.setToY(1.2);
-                b.setAutoReverse(true);
-                b.setCycleCount(2);
-                b.play();
-            });
-        }
-        return t;
+
+        double cx = col * size + size / 2.0;
+        double cy = (9 - row) * size + size / 2.0;
+        double off = 15;
+        double x = (isP1 ? cx - off : cx + off);
+        double y = cy;
+
+        token.setTranslateX(x - token.getFitWidth() / 2);
+        token.setTranslateY(y - token.getFitHeight() / 2);
+
+        onFinished.run();
     }
 
-    private TranslateTransition createStraightLineTransition(
-            ImageView token, int from, int to) {
+    private void placeTokenAt(int position, ImageView token, boolean isPlayer1) {
         int size = 60;
-        int fcol = (from - 1) % 10, frow = (from - 1) / 10;
-        int tcol = (to - 1) % 10, trow = (to - 1) / 10;
-        if (frow % 2 == 1)
-            fcol = 9 - fcol;
-        if (trow % 2 == 1)
-            tcol = 9 - tcol;
-        double fx = fcol * size + size / 2.0, fy = (9 - frow) * size + size / 2.0;
-        double tx = tcol * size + size / 2.0, ty = (9 - trow) * size + size / 2.0;
-        double off = 12;
-        if (token == player1Token) {
-            fx -= off;
-            tx -= off;
-        } else {
-            fx += off;
-            tx += off;
-        }
-        token.setTranslateX(fx - token.getFitWidth() / 2);
-        token.setTranslateY(fy - token.getFitHeight() / 2);
-        TranslateTransition climb = new TranslateTransition(
-                Duration.millis(600), token);
-        climb.setToX(tx - token.getFitWidth() / 2);
-        climb.setToY(ty - token.getFitHeight() / 2);
-        return climb;
+        int col = (position - 1) % 10;
+        int row = (position - 1) / 10;
+        if (row % 2 == 1)
+            col = 9 - col;
+
+        double cx = col * size + size / 2.0;
+        double cy = (9 - row) * size + size / 2.0;
+        double off = 15;
+        double x = (isPlayer1 ? cx - off : cx + off);
+        double y = cy;
+
+        token.setTranslateX(x - token.getFitWidth() / 2);
+        token.setTranslateY(y - token.getFitHeight() / 2);
     }
+
 }
