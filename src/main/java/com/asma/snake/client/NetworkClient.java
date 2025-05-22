@@ -1,4 +1,4 @@
-    package com.asma.snake.client;
+package com.asma.snake.client;
 
 import java.io.*;
 import java.net.Socket;
@@ -12,7 +12,7 @@ public class NetworkClient {
       Socket s = new Socket(host, port);
       out = new PrintWriter(s.getOutputStream(), true);
       BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
-      out.println("READY");
+
       new Thread(() -> {
         try {
           String line;
@@ -41,4 +41,3 @@ public class NetworkClient {
   }
 
 }
-    

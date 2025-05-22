@@ -49,6 +49,8 @@ public class GameUI {
     private final Queue<String> earlyMessages = new LinkedList<>();
     private boolean isReady = false;
 
+    Button playAgainButton = new Button("Play Again");
+
     public GameUI(Stage stage) {
         // 1) Game logic
         Player p1 = new Player("Player 1", "red");
@@ -141,12 +143,35 @@ public class GameUI {
             Platform.exit(); // Close window
         });
 
+        // Create Play Again button
+        playAgainButton.getStyleClass().add("play-again-button");
+        playAgainButton.setDisable(true); // initially disabled
+        playAgainButton.setOnAction(e -> {
+            playAgainButton.setDisable(true);
+            net.close(); // close the old (probably dead) connection
+
+            net = new NetworkClient("localhost", 40000, this::handleServerMessage);
+            System.out.println("Reconnecting to server...");
+            net.send("READY");
+            statusLabel.setText("Waiting for opponent to replay...");
+        });
+
+        // Exit button stays the same
+        exitButton.setOnAction(e -> {
+            net.send("EXIT");
+            net.close();
+            Platform.exit();
+        });
+
+        HBox buttonBox = new HBox(20, playAgainButton, exitButton);
+        buttonBox.setAlignment(Pos.CENTER);
+
         VBox root = new VBox(15,
                 boardLayer,
                 diceResult,
                 statusLabel,
                 controls,
-                exitButton);
+                buttonBox);
 
         root.setAlignment(Pos.CENTER);
         root.setBackground(Background.EMPTY);
@@ -224,6 +249,7 @@ public class GameUI {
                     yourColor = parts[1];
                     statusLabel.setText("Matched! You are: " + yourColor);
                     startGame();
+                    playAgainButton.setDisable(true); // prevent spam click
                     if ("blue".equals(yourColor)) {
                         statusLabel.setText("You are: blue, Opponent's turn...");
                     }
@@ -264,6 +290,7 @@ public class GameUI {
                     statusLabel.setText(parts[1] + " wins!");
                     player1Roll.setDisable(true);
                     player2Roll.setDisable(true);
+                    playAgainButton.setDisable(false); // Enable replay
                     break;
 
                 case "GAME_OVER":
@@ -276,6 +303,7 @@ public class GameUI {
                     statusLabel.getStyleClass().add("exit-message");
                     player1Roll.setDisable(true);
                     player2Roll.setDisable(true);
+                    playAgainButton.setDisable(false); // Enable replay
                     break;
 
             }

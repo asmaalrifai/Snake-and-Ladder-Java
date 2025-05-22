@@ -101,15 +101,14 @@
 }
 
 .play-again-button {
-    -fx-background-color: linear-gradient(to bottom, #ffb347, #ffcc33); /* Orange shades */
+    -fx-background-color: #4CAF50;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-font-size: 14px;
-    -fx-padding: 8 15;
-    -fx-background-radius: 20;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 1);
-    -fx-cursor: hand;
+    -fx-padding: 8 16;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
 }
+
 
 .play-again-button:hover {
     -fx-background-color: linear-gradient(to bottom, #ffa500, #ffd700); /* Deeper orange to gold */
