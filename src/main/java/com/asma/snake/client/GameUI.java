@@ -32,6 +32,7 @@ public class GameUI {
 
     // Server address and port (modifiable from one place)
     private static final String SERVER_HOST = "localhost";
+    // private static final String SERVER_HOST = "16.171.141.21";
     private static final int SERVER_PORT = 40000;
 
     // Player tokens and board display
