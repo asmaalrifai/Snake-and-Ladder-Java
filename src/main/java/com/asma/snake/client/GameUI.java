@@ -405,7 +405,7 @@ public class GameUI {
         gameManager.resetGame();
 
         statusLabel.setText("");
-        statusLabel.getStyleClass().removeAll("win-message", "exit-message"); // ✅ clear win/loss styles
+        statusLabel.getStyleClass().removeAll("win-message", "exit-message"); // clear win/loss styles
 
     }
 
