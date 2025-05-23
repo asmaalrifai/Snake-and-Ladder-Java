@@ -136,7 +136,7 @@ public class GameUI {
         root.setAlignment(Pos.CENTER);
         root.setBackground(Background.EMPTY);
 
-        Scene scene = new Scene(root, 600, 860);
+        Scene scene = new Scene(root, 600, 885);
         scene.getStylesheets().add("style.css");
 
         stage.setTitle("Snake and Ladder");
@@ -494,19 +494,16 @@ public class GameUI {
         // Direct ladder climb from 'from' to 'to'
         else if (board.getLadders().containsKey(from) && board.getLadders().get(from) == to) {
             label.setText("Ladder: " + from + " → " + to);
-            System.out.println("Ladder: " + from + " → " + to + " [" + label.getText() + "]");
         }
         // Direct snake slide from 'from' to 'to'
         else if (board.getSnakes().containsKey(from) && board.getSnakes().get(from) == to) {
             label.setText("Snake: " + from + " → " + to);
-            System.out.println("Snake: " + from + " → " + to + " [" + label.getText() + "]");
         } else {
             // Reverse lookup in case 'to' is only provided (no intermediate jump shown)
             if (board.getLadders().containsValue(to)) {
                 for (var entry : board.getLadders().entrySet()) {
                     if (entry.getValue() == to) {
                         label.setText("Ladder: " + entry.getKey() + " → " + to);
-                        System.out.println("Ladder: " + entry.getKey() + " → " + to + " [" + label.getText() + "]");
                         return;
                     }
                 }
@@ -514,7 +511,6 @@ public class GameUI {
                 for (var entry : board.getSnakes().entrySet()) {
                     if (entry.getValue() == to) {
                         label.setText("Snake: " + entry.getKey() + " → " + to);
-                        System.out.println("Snake: " + entry.getKey() + " → " + to + " [" + label.getText() + "]");
                         return;
                     }
                 }
