@@ -142,3 +142,8 @@
     -fx-text-fill: red;
     -fx-font-weight: bold;
 }
+
+.win-message {
+    -fx-text-fill: #00ff00; /* bright green */
+    -fx-font-weight: bold;
+}

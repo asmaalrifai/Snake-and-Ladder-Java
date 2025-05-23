@@ -5,102 +5,206 @@ import com.asma.snake.model.Player;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
-import javafx.scene.effect.Glow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+
 import java.util.LinkedList;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 
+/**
+ * This class represents the main game UI for the Snake and Ladder game.
+ * It handles rendering the board, user interactions, and communication with the
+ * server.
+ */
 public class GameUI {
 
+    // Game logic controller (handles rules, moves, and turn switching)
     private final GameManager gameManager;
+
+    // UI components to display game status and dice result
     private final Label statusLabel = new Label();
     private final Label diceResult = new Label();
 
+    // Server address and port (modifiable from one place)
+    private static final String SERVER_HOST = "localhost";
+    private static final int SERVER_PORT = 40000;
+
+    // Player tokens and board display
     private final ImageView player1Token = new ImageView();
     private final ImageView player2Token = new ImageView();
-    private final Pane boardLayer = new Pane();
+    private final Pane boardLayer = new Pane(); // Holds board and tokens
+
+    // Position labels for each player
     private final Label player1PosLabel = new Label();
     private final Label player2PosLabel = new Label();
+
+    // Dice images for each player
     private final ImageView diceImageView1 = new ImageView();
     private final ImageView diceImageView2 = new ImageView();
 
+    // Dice roll helper and rolling flag to prevent duplicate rolls
     private final Random random = new Random();
     private boolean isRolling = false;
 
+    // Tracks last known position of each player for animation
     private int previousPlayer1Pos = 1, previousPlayer2Pos = 1;
 
+    // File path templates for dice image resources
     private static final String RED_DICE_PATH = "dice/red/dice";
     private static final String BLUE_DICE_PATH = "dice/blue/dice";
 
+    // Network connection to the server and the assigned color for this client
     private NetworkClient net;
     private String yourColor;
-    private final Button player1Roll;
-    private final Button player2Roll;
 
+    // Buttons for rolling the dice for each player
+    private final Button player1Roll = new Button("Roll Dice");
+    private final Button player2Roll = new Button("Roll Dice");
+
+    // Used to store server messages that arrive before the UI is ready
     private final Queue<String> earlyMessages = new LinkedList<>();
     private boolean isReady = false;
 
-    Button playAgainButton = new Button("Play Again");
+    // Button to request a replay after the game ends
+    private final Button playAgainButton = new Button("Play Again");
 
     public GameUI(Stage stage) {
-        // 1) Game logic
         Player p1 = new Player("Player 1", "red");
         Player p2 = new Player("Player 2", "blue");
         gameManager = new GameManager(p1, p2);
 
-        // 2) Roll buttons
-        player1Roll = new Button("Roll Dice");
-        player2Roll = new Button("Roll Dice");
-        player1Roll.getStyleClass().add("roll-button");
-        player2Roll.getStyleClass().add("roll-button");
-        // disable until server MATCHED & TURN
+        // Initialize roll buttons
+        initRollButtons(p1, p2);
+
+        // Initialize dice images
+        setupDiceImages();
+
+        // Load board and tokens
+        setupBoardAndTokens();
+
+        // Labels for players
+        setupPlayerLabels(p1, p2);
+
+        // Control panel with dice and roll buttons
+        HBox controls = createControlPanel();
+
+        // Status and result labels
+        statusLabel.setText("Waiting for\nanother player...");
+        statusLabel.getStyleClass().add("status-label");
+        diceResult.getStyleClass().add("dice-result");
+
+        // Play Again and Exit buttons
+        HBox buttonBox = setupBottomButtons();
+
+        // Create player boxes
+        VBox box1 = new VBox(10, new Label("Red Player"), new StackPane(diceImageView1), player1PosLabel, player1Roll);
+        box1.setAlignment(Pos.CENTER);
+        box1.setMinWidth(180);
+        box1.getStyleClass().add("player-box");
+
+        VBox box2 = new VBox(10, new Label("Blue Player"), new StackPane(diceImageView2), player2PosLabel, player2Roll);
+        box2.setAlignment(Pos.CENTER);
+        box2.setMinWidth(180);
+        box2.getStyleClass().add("player-box");
+
+        // Create middle message box (dice result + status)
+        HBox controlsWithCenterLabel = new HBox(20, box2, centerMessageBox(), box1);
+        controlsWithCenterLabel.setAlignment(Pos.CENTER);
+
+        VBox root = new VBox(15, boardLayer, controlsWithCenterLabel, buttonBox);
+
+        root.setAlignment(Pos.CENTER);
+        root.setBackground(Background.EMPTY);
+
+        Scene scene = new Scene(root, 600, 860);
+        scene.getStylesheets().add("style.css");
+
+        stage.setTitle("Snake and Ladder");
+        stage.setScene(scene);
+        stage.show();
+
+        // Token initial placement
+        placeTokenAt(1, player1Token, true);
+        placeTokenAt(1, player2Token, false);
+
+        // Networking
+        net = new NetworkClient(SERVER_HOST, SERVER_PORT, this::handleServerMessage);
+        net.send("READY");
+
+        isReady = true;
+        while (!earlyMessages.isEmpty()) {
+            processServerMessage(earlyMessages.poll());
+        }
+
+        stage.setOnCloseRequest(e -> {
+            e.consume();
+            net.send("EXIT");
+            net.close();
+            Platform.exit();
+        });
+    }
+
+    // Configure and disable roll buttons initially. Attach action handlers.
+    private void initRollButtons(Player p1, Player p2) {
+        // Disable buttons at start and apply CSS class
         player1Roll.setDisable(true);
         player2Roll.setDisable(true);
+        player1Roll.getStyleClass().add("roll-button");
+        player2Roll.getStyleClass().add("roll-button");
+
+        // Bind each button to call handleRoll() with the correct player
         player1Roll.setOnAction(e -> handleRoll(p1));
         player2Roll.setOnAction(e -> handleRoll(p2));
 
-        // 3) Load dice images
+    }
+
+    // Load initial dice face images and apply styles.
+    private void setupDiceImages() {
+        // Load default dice images (value 1) for red and blue
         diceImageView1.setImage(new Image(getClass().getResource("/dice/red/dice1.png").toExternalForm()));
         diceImageView2.setImage(new Image(getClass().getResource("/dice/blue/dice1.png").toExternalForm()));
-        diceImageView1.setFitWidth(70);
-        diceImageView1.setFitHeight(70);
-        diceImageView2.setFitWidth(70);
-        diceImageView2.setFitHeight(70);
-        diceImageView1.getStyleClass().add("dice-image");
-        diceImageView2.getStyleClass().add("dice-image");
 
-        // 5) Board + tokens
-        ImageView boardView = new ImageView(
-                new Image(getClass().getResource("/board.png").toExternalForm()));
+        // Set size and style for both dice
+        for (ImageView dice : new ImageView[] { diceImageView1, diceImageView2 }) {
+            dice.setFitWidth(70);
+            dice.setFitHeight(70);
+            dice.getStyleClass().add("dice-image");
+        }
+
+    }
+
+    // Load the board image and player tokens. Apply layout and styles.
+    private void setupBoardAndTokens() {
+        // Load the board background image and set its size
+        ImageView boardView = new ImageView(new Image(getClass().getResource("/board.png").toExternalForm()));
         boardView.setFitWidth(600);
         boardView.setFitHeight(600);
 
+        // Load each player's token image
         player1Token.setImage(new Image(getClass().getResource("/tokens/Player_Red.png").toExternalForm()));
         player2Token.setImage(new Image(getClass().getResource("/tokens/Player_Blue.png").toExternalForm()));
-        player1Token.setFitWidth(45);
-        player1Token.setFitHeight(45);
-        player2Token.setFitWidth(45);
-        player2Token.setFitHeight(45);
-        player1Token.getStyleClass().add("token");
-        player2Token.getStyleClass().add("token");
 
-        Glow glow = new Glow(0.8);
-        player1Token.setEffect(glow);
-        player2Token.setEffect(glow);
+        // Set size and style for tokens
+        for (ImageView token : new ImageView[] { player1Token, player2Token }) {
+            token.setFitWidth(45);
+            token.setFitHeight(45);
+            token.getStyleClass().add("token");
+        }
 
+        // Add board and tokens to the game layer
         boardLayer.getStyleClass().add("board-layer");
         boardLayer.getChildren().addAll(boardView, player1Token, player2Token);
 
-        // 6) Labels
+    }
+
+    // Create name and position labels for both players.
+    private void setupPlayerLabels(Player p1, Player p2) {
+        // Create and style labels for player names and positions
         Label lbl1 = new Label("Red " + p1.getName());
         lbl1.getStyleClass().addAll("player-label", "player1-label");
         player1PosLabel.getStyleClass().add("position-label");
@@ -111,167 +215,134 @@ public class GameUI {
         player2PosLabel.getStyleClass().add("position-label");
         player2PosLabel.setText("Position: 1");
 
-        // 7) Turn timers
+    }
 
-        StackPane ds1 = new StackPane(diceImageView1);
-        StackPane ds2 = new StackPane(diceImageView2);
-
-        VBox box1 = new VBox(10, lbl1, ds1, player1PosLabel, player1Roll);
+    // Create layout containing dice images, position labels, and roll buttons.
+    private HBox createControlPanel() {
+        // Create player boxes with dice, position, and roll button
+        VBox box1 = new VBox(10, new Label("Red Player"), new StackPane(diceImageView1), player1PosLabel, player1Roll);
         box1.setAlignment(Pos.CENTER);
-        box1.getStyleClass().add("player-box");
         box1.setMinWidth(180);
+        box1.getStyleClass().add("player-box");
 
-        VBox box2 = new VBox(10, lbl2, ds2, player2PosLabel, player2Roll);
+        VBox box2 = new VBox(10, new Label("Blue Player"), new StackPane(diceImageView2), player2PosLabel, player2Roll);
         box2.setAlignment(Pos.CENTER);
-        box2.getStyleClass().add("player-box");
         box2.setMinWidth(180);
+        box2.getStyleClass().add("player-box");
 
-        HBox controls = new HBox(20, box2, box1);
-        controls.setAlignment(Pos.CENTER);
+        // Place boxes side by side
+        HBox hbox = new HBox(20, box2, box1);
+        hbox.setAlignment(Pos.CENTER);
+        return hbox;
+    }
 
-        statusLabel.setText("Waiting for another player...");
-
-        statusLabel.getStyleClass().add("status-label");
-        diceResult.getStyleClass().add("dice-result");
-
-        // Exit button
+    // Setup Play Again and Exit buttons with networking behavior.
+    private HBox setupBottomButtons() {
+        // Create Exit button with server disconnect logic
         Button exitButton = new Button("Exit");
         exitButton.getStyleClass().add("exit-button");
-        exitButton.setOnAction(e -> {
-            net.send("EXIT"); // Notify the server
-            net.close(); // Close client socket
-            Platform.exit(); // Close window
-        });
-
-        // Create Play Again button
-        playAgainButton.getStyleClass().add("play-again-button");
-        playAgainButton.setDisable(true); // initially disabled
-        playAgainButton.setOnAction(e -> {
-            playAgainButton.setDisable(true);
-            net.close(); // close the old (probably dead) connection
-
-            net = new NetworkClient("localhost", 40000, this::handleServerMessage);
-            System.out.println("Reconnecting to server...");
-            net.send("READY");
-            statusLabel.setText("Waiting for opponent to replay...");
-        });
-
-        // Exit button stays the same
         exitButton.setOnAction(e -> {
             net.send("EXIT");
             net.close();
             Platform.exit();
         });
 
-        HBox buttonBox = new HBox(20, playAgainButton, exitButton);
-        buttonBox.setAlignment(Pos.CENTER);
-
-        VBox root = new VBox(15,
-                boardLayer,
-                diceResult,
-                statusLabel,
-                controls,
-                buttonBox);
-
-        root.setAlignment(Pos.CENTER);
-        root.setBackground(Background.EMPTY);
-
-        Scene scene = new Scene(root, 600, 875);
-        scene.getStylesheets().add("style.css");
-        stage.setTitle("🐍 Snake and Ladder 🪜");
-        stage.setScene(scene);
-        isReady = true;
-        while (!earlyMessages.isEmpty()) {
-            processServerMessage(earlyMessages.poll());
-        }
-
-        stage.show();
-        // Place tokens on tile 1 at game start
-        placeTokenAt(1, player1Token, true); // red
-        placeTokenAt(1, player2Token, false); // blue
-
-        // 8) Network
-        System.out.println("Connecting to game server...");
-        // net = new NetworkClient("13.53.129.233", 40000, this::handleServerMessage);
-        net = new NetworkClient("localhost", 40000, this::handleServerMessage);
-        System.out.println("Sending READY...");
-        net.send("READY");
-
-        // if a player exit the game
-        stage.setOnCloseRequest(e -> {
-            e.consume(); // 🔒 prevent default close
-
-            net.send("EXIT"); // 📤 inform server (and the other client)
-            net.close(); // 🔌 close socket
-            Platform.exit(); // 🧹 close the app
+        // Configure Play Again button to rejoin server and disable itself
+        playAgainButton.getStyleClass().add("play-again-button");
+        playAgainButton.setDisable(true);
+        playAgainButton.setOnAction(e -> {
+            playAgainButton.setDisable(true);
+            net.close(); // close old socket
+            net = new NetworkClient(SERVER_HOST, SERVER_PORT, this::handleServerMessage); // reconnect
+            net.send("READY");
+            statusLabel.setText("Waiting for\nopponent\nto replay...");
         });
+
+        // Group and return the buttons in a layout
+        HBox box = new HBox(20, playAgainButton, exitButton);
+        box.setAlignment(Pos.CENTER);
+        return box;
 
     }
 
+    // Simulate a dice roll, update the image and notify the server.
     private void handleRoll(Player player) {
+        // Prevent duplicate roll actions
         if (isRolling)
             return;
         isRolling = true;
+
+        // Disable both roll buttons after click
         player1Roll.setDisable(true);
         player2Roll.setDisable(true);
 
-        int simulatedRoll = random.nextInt(6) + 1;
-        String path = player.getColor().equals("red") ? RED_DICE_PATH : BLUE_DICE_PATH;
-        String frame = "/" + path + simulatedRoll + ".png";
+        // Generate a random number between 1–6
+        int value = random.nextInt(6) + 1;
 
-        Platform.runLater(() -> {
-            ImageView dv = player.getColor().equals("red") ? diceImageView1 : diceImageView2;
-            dv.setImage(new Image(getClass().getResource(frame).toExternalForm()));
-            diceResult.setText(
-                    (player.getColor().equals("red") ? "Red" : "Blue") +
-                            " rolled: " + simulatedRoll);
-        });
+        // Construct path to corresponding dice image
+        String path = (player.getColor().equals("red") ? RED_DICE_PATH : BLUE_DICE_PATH) + value + ".png";
 
-        net.send("ROLL:" + simulatedRoll);
+        // Update dice image and display result text
+        ImageView view = player.getColor().equals("red") ? diceImageView1 : diceImageView2;
+        view.setImage(new Image(getClass().getResource("/" + path).toExternalForm()));
+
+        diceResult.setText((player.getColor().equals("red") ? "Red" : "Blue") + " rolled: " + value);
+
+        // Send result to server
+        net.send("ROLL:" + value);
     }
 
+    // If not ready, queue message. Otherwise, process it immediately.
     private void handleServerMessage(String msg) {
-        System.out.println("Server said: " + msg);
         if (!isReady) {
-            earlyMessages.add(msg); // queue until setup complete
-            return;
+            earlyMessages.add(msg);
+        } else {
+            processServerMessage(msg);
         }
-
-        processServerMessage(msg);
     }
 
+    // Handle different server messages (MATCHED, TURN, ROLL, MOVE, WIN, EXIT, etc.)
     private void processServerMessage(String msg) {
-
         Platform.runLater(() -> {
-            String[] parts = msg.split(":", 3);
+            String[] parts = msg.split(":", 3); // Split message into prefix and data
+
             switch (parts[0]) {
-                case "MATCHED":
+
+                case "MATCHED" -> {
+                    // Assign color from server and start game
                     yourColor = parts[1];
                     statusLabel.setText("Matched! You are: " + yourColor);
                     startGame();
-                    playAgainButton.setDisable(true); // prevent spam click
-                    if ("blue".equals(yourColor)) {
-                        statusLabel.setText("You are: blue, Opponent's turn...");
-                    }
-                    break;
+                    playAgainButton.setDisable(true); // disable play again during match
 
-                case "TURN":
+                    // Optional message if player is blue (red always starts)
+                    if ("blue".equals(yourColor)) {
+                        statusLabel.setText("You are: blue\nOpponent's turn...");
+                    }
+                }
+
+                case "TURN" -> {
+                    // Enable roll button only for the current player
                     boolean myTurn = yourColor.equals(parts[1]);
                     player1Roll.setDisable(!(myTurn && "red".equals(yourColor)));
                     player2Roll.setDisable(!(myTurn && "blue".equals(yourColor)));
-                    statusLabel.setText("You are: " + parts[1]);
-                    isRolling = false;
-                    break;
-                case "ROLL":
-                    String rollColor = parts[1];
-                    int value = Integer.parseInt(parts[2]);
-                    ImageView targetDiceView = rollColor.equals("red") ? diceImageView1 : diceImageView2;
-                    String imagePath = (rollColor.equals("red") ? RED_DICE_PATH : BLUE_DICE_PATH) + value + ".png";
-                    targetDiceView.setImage(new Image(getClass().getResource("/" + imagePath).toExternalForm()));
-                    diceResult.setText((rollColor.equals("red") ? "Red" : "Blue") + " rolled: " + value);
-                    break;
+                    statusLabel.setText("You're: " + parts[1]);
+                    isRolling = false; // allow next roll
+                }
 
-                case "MOVE":
+                case "ROLL" -> {
+                    // Update dice image and result text based on the server's roll info
+                    String color = parts[1];
+                    int val = Integer.parseInt(parts[2]);
+                    ImageView dice = "red".equals(color) ? diceImageView1 : diceImageView2;
+                    dice.setImage(new Image(getClass()
+                            .getResource("/" + (color.equals("red") ? RED_DICE_PATH : BLUE_DICE_PATH) + val + ".png")
+                            .toExternalForm()));
+                    diceResult.setText((color.equals("red") ? "Red" : "Blue") + " rolled: " + val);
+                }
+
+                case "MOVE" -> {
+                    // Animate token movement and update position label
                     String color = parts[1];
                     int newPos = Integer.parseInt(parts[2]);
                     if (color.equals("red")) {
@@ -285,88 +356,97 @@ public class GameUI {
                             player2PosLabel.setText("Position: " + newPos);
                         });
                     }
-                    break;
-                case "WIN":
+                }
+
+                case "WIN" -> {
+                    // Show winner and enable play again
                     statusLabel.setText(parts[1] + " wins!");
+                    statusLabel.getStyleClass().removeAll("exit-message"); // remove old styles
+                    statusLabel.getStyleClass().add("win-message");
                     player1Roll.setDisable(true);
                     player2Roll.setDisable(true);
                     playAgainButton.setDisable(false); // Enable replay
-                    break;
+                }
 
-                case "GAME_OVER":
-                    String winner = parts[1];
-                    statusLabel.setText(winner + " wins!");
-
-                    break;
-                case "EXIT":
-                    statusLabel.setText("Your opponent has exited. Game over.");
+                case "EXIT" -> {
+                    // Handle opponent disconnection
+                    statusLabel.setText("Your opponent\nhas exited.\nGame over.");
                     statusLabel.getStyleClass().add("exit-message");
                     player1Roll.setDisable(true);
                     player2Roll.setDisable(true);
                     playAgainButton.setDisable(false); // Enable replay
-                    break;
-
+                }
             }
         });
     }
 
+    // Reset game UI and state for a new match.
     private void startGame() {
-        // Reset player positions
-        previousPlayer1Pos = 1;
-        previousPlayer2Pos = 1;
+        // Reset position tracking
+        previousPlayer1Pos = previousPlayer2Pos = 1;
+
+        // Update labels to starting positions
         player1PosLabel.setText("Position: 1");
         player2PosLabel.setText("Position: 1");
 
-        // Reset tokens to position 1
+        // Reset token visuals to starting tile
         placeTokenAt(1, player1Token, true);
         placeTokenAt(1, player2Token, false);
 
-        // Reset dice
+        // Reset dice visuals
         diceImageView1.setImage(new Image(getClass().getResource("/dice/red/dice1.png").toExternalForm()));
         diceImageView2.setImage(new Image(getClass().getResource("/dice/blue/dice1.png").toExternalForm()));
+
+        // Clear any text shown in result/status
         diceResult.setText("");
         statusLabel.setText("");
 
+        // Reset logic state in the GameManager
         gameManager.resetGame();
+
+        statusLabel.setText("");
+        statusLabel.getStyleClass().removeAll("win-message", "exit-message"); // ✅ clear win/loss styles
+
     }
 
+    // Move token to new board position visually. Then run a callback.
     private void animateMovement(Player player, int start, int end, Runnable onFinished) {
-        ImageView token = player.getColor().equals("red") ? player1Token : player2Token;
-        boolean isP1 = player.getColor().equals("red");
-        int size = 60;
-
-        int col = (end - 1) % 10;
-        int row = (end - 1) / 10;
-        if (row % 2 == 1)
-            col = 9 - col;
-
-        double cx = col * size + size / 2.0;
-        double cy = (9 - row) * size + size / 2.0;
-        double off = 15;
-        double x = (isP1 ? cx - off : cx + off);
-        double y = cy;
-
-        token.setTranslateX(x - token.getFitWidth() / 2);
-        token.setTranslateY(y - token.getFitHeight() / 2);
-
-        onFinished.run();
+        // Choose which token to move and place it at the destination
+        placeTokenAt(end, player.getColor().equals("red") ? player1Token : player2Token,
+                "red".equals(player.getColor()));
+        onFinished.run(); // Perform post-move actions (e.g., update label)
     }
 
+    // Calculate grid coordinates and place the token on the board.
     private void placeTokenAt(int position, ImageView token, boolean isPlayer1) {
-        int size = 60;
+        int size = 60; // tile width/height
+
         int col = (position - 1) % 10;
         int row = (position - 1) / 10;
+
+        // Handle zigzag pattern of Snake & Ladder board
         if (row % 2 == 1)
             col = 9 - col;
 
+        // Calculate center of tile
         double cx = col * size + size / 2.0;
         double cy = (9 - row) * size + size / 2.0;
+
+        // Offset slightly left/right to avoid overlap
         double off = 15;
-        double x = (isPlayer1 ? cx - off : cx + off);
+        double x = isPlayer1 ? cx - off : cx + off;
         double y = cy;
 
+        // Apply translation to token
         token.setTranslateX(x - token.getFitWidth() / 2);
         token.setTranslateY(y - token.getFitHeight() / 2);
+    }
+
+    private VBox centerMessageBox() {
+        VBox messageBox = new VBox(8, diceResult, statusLabel);
+        messageBox.setAlignment(Pos.CENTER);
+        messageBox.setMinWidth(160);
+        return messageBox;
     }
 
 }

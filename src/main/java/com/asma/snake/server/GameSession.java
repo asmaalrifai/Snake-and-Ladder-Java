@@ -7,6 +7,10 @@ import java.util.concurrent.*;
 import com.asma.snake.logic.GameManager;
 import com.asma.snake.model.Player;
 
+/**
+ * Represents a session between two players.
+ * Handles turn-based logic, dice rolls, moves, win condition, and communication.
+ */
 public class GameSession implements Runnable {
 
     private final BlockingQueue<String> redQueue = new LinkedBlockingQueue<>();
@@ -17,9 +21,7 @@ public class GameSession implements Runnable {
     public GameSession(ClientHandler a, ClientHandler b) {
         this.redHandler = a;
         this.blueHandler = b;
-        Player redPlayer = new Player("Player 1", "red");
-        Player bluePlayer = new Player("Player 2", "blue");
-        this.gm = new GameManager(redPlayer, bluePlayer);
+        this.gm = new GameManager(new Player("Player 1", "red"), new Player("Player 2", "blue"));
     }
 
     @Override
@@ -30,7 +32,7 @@ public class GameSession implements Runnable {
             blueHandler.send("MATCHED:blue");
             Thread.sleep(500);
 
-            // Start listeners
+            // Start listener threads for each client
             new Thread(() -> listenToClient(redHandler, redQueue)).start();
             new Thread(() -> listenToClient(blueHandler, blueQueue)).start();
 
@@ -43,30 +45,27 @@ public class GameSession implements Runnable {
 
                 currentHandler.send("TURN:" + current.getColor());
 
-                // Keep polling until a valid ROLL or EXIT received
+                // Wait for ROLL or EXIT
                 while (true) {
-                    // Check for EXIT from opponent
                     String opponentMsg = opponentQueue.poll(100, TimeUnit.MILLISECONDS);
                     if ("EXIT".equals(opponentMsg)) {
                         currentHandler.send("EXIT");
                         return;
                     }
 
-                    // Check if current player has sent a message
                     String msg = currentQueue.poll(100, TimeUnit.MILLISECONDS);
-                    if (msg == null)
-                        continue;
+                    if (msg == null) continue;
 
                     if ("EXIT".equals(msg)) {
                         opponentHandler.send("EXIT");
                         return;
                     }
 
-                    if (!msg.startsWith("ROLL:"))
-                        continue;
+                    if (!msg.startsWith("ROLL:")) continue;
 
                     int roll = Integer.parseInt(msg.split(":", 2)[1]);
 
+                    // Broadcast roll
                     String rollMsg = "ROLL:" + current.getColor() + ":" + roll;
                     redHandler.send(rollMsg);
                     blueHandler.send(rollMsg);
@@ -84,10 +83,10 @@ public class GameSession implements Runnable {
                     }
 
                     if (gm.shouldSwitchTurn(roll)) {
-                        gm.switchTurn();
+                        gm.switchTurn(); // Do not switch if roll == 6
                     }
 
-                    break; // Done processing this turn
+                    break;
                 }
             }
 
@@ -104,6 +103,7 @@ public class GameSession implements Runnable {
         }
     }
 
+    /** Listens for incoming messages from a client and pushes to queue. */
     private void listenToClient(ClientHandler handler, BlockingQueue<String> queue) {
         try {
             String msg;
@@ -113,8 +113,7 @@ public class GameSession implements Runnable {
         } catch (IOException | InterruptedException e) {
             try {
                 queue.put("EXIT");
-            } catch (InterruptedException ignored) {
-            }
+            } catch (InterruptedException ignored) {}
         }
     }
 }
