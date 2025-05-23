@@ -1,3 +1,4 @@
+
 .root {
     -fx-background-color: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d);
 }
@@ -71,31 +72,6 @@
     -fx-text-fill: #666666;
 }
 
-.play-again {
-    -fx-background-color: linear-gradient(to bottom, #a8ff78, #78ffd6);
-    -fx-text-fill: #333333;
-    -fx-font-weight: bold;
-    -fx-font-size: 16px;
-    -fx-padding: 10 20;
-    -fx-background-radius: 25;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 1);
-}
-
-.play-again:hover {
-    -fx-background-color: linear-gradient(to bottom, #76ff7a, #5efce8);
-}
-
-.timer-label {
-    -fx-font-size: 16px;
-    -fx-font-weight: bold;
-    -fx-text-fill: white;
-}
-
-.turn-timer {
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
-}
-
 .dice-image {
     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 5, 0, 0, 1);
 }
@@ -109,22 +85,9 @@
     -fx-background-radius: 8;
 }
 
-
 .play-again-button:hover {
-    -fx-background-color: linear-gradient(to bottom, #ffa500, #ffd700); /* Deeper orange to gold */
+    -fx-background-color: linear-gradient(to bottom, #ffa500, #ffd700);
 }
-
-
-.snake-effect {
-    -fx-fill: radial-gradient(center 50% 50%, radius 50%, #ff0000, #990000);
-    -fx-opacity: 0.7;
-}
-
-.ladder-effect {
-    -fx-fill: radial-gradient(center 50% 50%, radius 50%, #00ff00, #009900);
-    -fx-opacity: 0.7;
-}
-
 
 .exit-button {
     -fx-background-color: #ff4d4d;
@@ -134,6 +97,7 @@
     -fx-border-radius: 8px;
     -fx-background-radius: 8px;
 }
+
 .exit-button:hover {
     -fx-background-color: #cc0000;
 }
@@ -144,6 +108,12 @@
 }
 
 .win-message {
-    -fx-text-fill: #00ff00; /* bright green */
+    -fx-text-fill: #00ff00;
     -fx-font-weight: bold;
+}
+
+.effect-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #d35400;
+    -fx-font-style: italic;
 }

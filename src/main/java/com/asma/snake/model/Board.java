@@ -3,37 +3,26 @@ package com.asma.snake.model;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Represents the game board with all snake and ladder positions.
- * Uses two hash maps to store snake heads and ladder bottoms.
- */
 public class Board {
 
-    private final Map<Integer, Integer> snakes;
-    private final Map<Integer, Integer> ladders;
+    private final Map<Integer, Integer> snakes; // Stores snake head → tail
+    private final Map<Integer, Integer> ladders; // Stores ladder bottom → top
 
-    /**
-     * Initializes the board by setting up snakes and ladders.
-     */
     public Board() {
         snakes = new HashMap<>();
         ladders = new HashMap<>();
-        setupBoard();
+        setupBoard(); // Initialize snake and ladder positions
     }
 
-    /**
-     * Sets up the positions for snakes and ladders on the board.
-     * Format: key = start position, value = end position.
-     */
     private void setupBoard() {
-        // Snakes: head -> tail
+        // Snakes: head → tail
         snakes.put(46, 14);
         snakes.put(51, 29);
         snakes.put(60, 22);
         snakes.put(74, 49);
         snakes.put(97, 78);
 
-        // Ladders: bottom -> top
+        // Ladders: bottom → top
         ladders.put(4, 38);
         ladders.put(12, 32);
         ladders.put(36, 75);
@@ -41,33 +30,21 @@ public class Board {
         ladders.put(69, 88);
     }
 
-    /**
-     * Checks the given position for a snake or ladder.
-     *
-     * @param position the player's current position
-     * @return the new position after applying snake/ladder logic
-     */
     public int checkPosition(int position) {
         if (snakes.containsKey(position)) {
-            return snakes.get(position);
+            return snakes.get(position); // Landed on a snake
         }
         if (ladders.containsKey(position)) {
-            return ladders.get(position);
+            return ladders.get(position); // Landed on a ladder
         }
-        return position;
+        return position; // No snake or ladder
     }
 
-    /**
-     * @return the map of snake positions.
-     */
     public Map<Integer, Integer> getSnakes() {
-        return snakes;
+        return snakes; // Return snake map
     }
 
-    /**
-     * @return the map of ladder positions.
-     */
     public Map<Integer, Integer> getLadders() {
-        return ladders;
+        return ladders; // Return ladder map
     }
 }

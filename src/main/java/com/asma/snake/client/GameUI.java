@@ -1,6 +1,7 @@
 package com.asma.snake.client;
 
 import com.asma.snake.logic.GameManager;
+import com.asma.snake.model.Board;
 import com.asma.snake.model.Player;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -32,7 +33,6 @@ public class GameUI {
 
     // Server address and port (modifiable from one place)
     private static final String SERVER_HOST = "localhost";
-    // private static final String SERVER_HOST = "16.171.141.21";
     private static final int SERVER_PORT = 40000;
 
     // Player tokens and board display
@@ -74,6 +74,10 @@ public class GameUI {
     // Button to request a replay after the game ends
     private final Button playAgainButton = new Button("Play Again");
 
+    // for the ladder and snake jumps displays
+    private final Label player1EffectLabel = new Label();
+    private final Label player2EffectLabel = new Label();
+
     public GameUI(Stage stage) {
         Player p1 = new Player("Player 1", "red");
         Player p2 = new Player("Player 2", "blue");
@@ -103,12 +107,22 @@ public class GameUI {
         HBox buttonBox = setupBottomButtons();
 
         // Create player boxes
-        VBox box1 = new VBox(10, new Label("Red Player"), new StackPane(diceImageView1), player1PosLabel, player1Roll);
+        VBox box1 = new VBox(10,
+                new Label("Red Player"),
+                new StackPane(diceImageView1),
+                player1PosLabel,
+                player1EffectLabel,
+                player1Roll);
         box1.setAlignment(Pos.CENTER);
         box1.setMinWidth(180);
         box1.getStyleClass().add("player-box");
 
-        VBox box2 = new VBox(10, new Label("Blue Player"), new StackPane(diceImageView2), player2PosLabel, player2Roll);
+        VBox box2 = new VBox(10,
+                new Label("Blue Player"),
+                new StackPane(diceImageView2),
+                player2PosLabel,
+                player2EffectLabel,
+                player2Roll);
         box2.setAlignment(Pos.CENTER);
         box2.setMinWidth(180);
         box2.getStyleClass().add("player-box");
@@ -216,20 +230,30 @@ public class GameUI {
         player2PosLabel.getStyleClass().add("position-label");
         player2PosLabel.setText("Position: 1");
 
+        // print thw snales and ladders jumps
+        player1EffectLabel.getStyleClass().add("effect-label");
+        player2EffectLabel.getStyleClass().add("effect-label");
+        player1EffectLabel.setText("waiting...");
+        player2EffectLabel.setText("waiting...");
+
     }
 
     // Create layout containing dice images, position labels, and roll buttons.
     private HBox createControlPanel() {
         // Create player boxes with dice, position, and roll button
-        VBox box1 = new VBox(10, new Label("Red Player"), new StackPane(diceImageView1), player1PosLabel, player1Roll);
-        box1.setAlignment(Pos.CENTER);
-        box1.setMinWidth(180);
-        box1.getStyleClass().add("player-box");
+        VBox box1 = new VBox(10,
+                new Label("Red Player"),
+                new StackPane(diceImageView1),
+                player1PosLabel,
+                player1EffectLabel,
+                player1Roll);
 
-        VBox box2 = new VBox(10, new Label("Blue Player"), new StackPane(diceImageView2), player2PosLabel, player2Roll);
-        box2.setAlignment(Pos.CENTER);
-        box2.setMinWidth(180);
-        box2.getStyleClass().add("player-box");
+        VBox box2 = new VBox(10,
+                new Label("Blue Player"),
+                new StackPane(diceImageView2),
+                player2PosLabel,
+                player2EffectLabel,
+                player2Roll);
 
         // Place boxes side by side
         HBox hbox = new HBox(20, box2, box1);
@@ -343,20 +367,31 @@ public class GameUI {
                 }
 
                 case "MOVE" -> {
-                    // Animate token movement and update position label
                     String color = parts[1];
                     int newPos = Integer.parseInt(parts[2]);
+                    Board board = gameManager.getBoard();
+                    int displayFrom, displayTo;
+
                     if (color.equals("red")) {
-                        animateMovement(gameManager.getPlayer1(), previousPlayer1Pos, newPos, () -> {
-                            previousPlayer1Pos = newPos;
-                            player1PosLabel.setText("Position: " + newPos);
+                        displayFrom = previousPlayer1Pos;
+                        displayTo = newPos;
+                        animateMovement(gameManager.getPlayer1(), displayFrom, displayTo, () -> {
+                            previousPlayer1Pos = displayTo;
+                            player1PosLabel.setText("Position: " + displayTo);
+                            updateEffectLabel(player1EffectLabel, displayFrom, displayTo, board);
+
                         });
                     } else {
-                        animateMovement(gameManager.getPlayer2(), previousPlayer2Pos, newPos, () -> {
-                            previousPlayer2Pos = newPos;
-                            player2PosLabel.setText("Position: " + newPos);
+                        displayFrom = previousPlayer2Pos;
+                        displayTo = newPos;
+                        animateMovement(gameManager.getPlayer2(), displayFrom, displayTo, () -> {
+                            previousPlayer2Pos = displayTo;
+                            player2PosLabel.setText("Position: " + displayTo);
+                            updateEffectLabel(player2EffectLabel, displayFrom, displayTo, board);
+
                         });
                     }
+
                 }
 
                 case "WIN" -> {
@@ -448,6 +483,46 @@ public class GameUI {
         messageBox.setAlignment(Pos.CENTER);
         messageBox.setMinWidth(160);
         return messageBox;
+    }
+
+    // show if the player hit on a snake or a ladder
+    private void updateEffectLabel(Label label, int from, int to, Board board) {
+        // No movement occurred
+        if (from == to) {
+            label.setText("waiting...");
+        }
+        // Direct ladder climb from 'from' to 'to'
+        else if (board.getLadders().containsKey(from) && board.getLadders().get(from) == to) {
+            label.setText("Ladder: " + from + " → " + to);
+            System.out.println("Ladder: " + from + " → " + to + " [" + label.getText() + "]");
+        }
+        // Direct snake slide from 'from' to 'to'
+        else if (board.getSnakes().containsKey(from) && board.getSnakes().get(from) == to) {
+            label.setText("Snake: " + from + " → " + to);
+            System.out.println("Snake: " + from + " → " + to + " [" + label.getText() + "]");
+        } else {
+            // Reverse lookup in case 'to' is only provided (no intermediate jump shown)
+            if (board.getLadders().containsValue(to)) {
+                for (var entry : board.getLadders().entrySet()) {
+                    if (entry.getValue() == to) {
+                        label.setText("Ladder: " + entry.getKey() + " → " + to);
+                        System.out.println("Ladder: " + entry.getKey() + " → " + to + " [" + label.getText() + "]");
+                        return;
+                    }
+                }
+            } else if (board.getSnakes().containsValue(to)) {
+                for (var entry : board.getSnakes().entrySet()) {
+                    if (entry.getValue() == to) {
+                        label.setText("Snake: " + entry.getKey() + " → " + to);
+                        System.out.println("Snake: " + entry.getKey() + " → " + to + " [" + label.getText() + "]");
+                        return;
+                    }
+                }
+            } else {
+                // No snake or ladder effect
+                label.setText("normal move");
+            }
+        }
     }
 
 }

@@ -16,6 +16,8 @@ public class GameManager {
     private final Board board;
 
     private Player currentPlayer;
+    private int lastRawPosition = -1;
+    private int lastFinalPosition = -1;
 
     /**
      * Initializes the game with two players and a new board and dice.
@@ -52,18 +54,19 @@ public class GameManager {
     public int movePlayer(int rollValue) {
         int tentativePos = currentPlayer.getPosition() + rollValue;
 
-        // Must land exactly on 100 to win
         if (tentativePos > 100) {
+            lastRawPosition = currentPlayer.getPosition();
+            lastFinalPosition = currentPlayer.getPosition();
             return currentPlayer.getPosition(); // no move
         }
 
-        // Move to tentative position
-        currentPlayer.moveTo(tentativePos);
+        lastRawPosition = tentativePos;
 
-        // Check for snake or ladder
+        currentPlayer.moveTo(tentativePos);
         int finalPos = board.checkPosition(currentPlayer.getPosition());
         currentPlayer.moveTo(finalPos);
 
+        lastFinalPosition = finalPos;
         return currentPlayer.getPosition();
     }
 
@@ -101,5 +104,15 @@ public class GameManager {
         player1.moveTo(1);
         player2.moveTo(1);
         currentPlayer = player1;
+
     }
+
+    public int getLastRawPosition() {
+    return lastRawPosition;
+}
+
+public int getLastFinalPosition() {
+    return lastFinalPosition;
+}
+
 }

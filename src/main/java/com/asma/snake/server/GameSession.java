@@ -7,16 +7,15 @@ import java.util.concurrent.*;
 import com.asma.snake.logic.GameManager;
 import com.asma.snake.model.Player;
 
-/**
- * Represents a session between two players.
- * Handles turn-based logic, dice rolls, moves, win condition, and communication.
- */
+// Represents a game session between two players
 public class GameSession implements Runnable {
 
+    // Message queues for each player
     private final BlockingQueue<String> redQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<String> blueQueue = new LinkedBlockingQueue<>();
-    private final ClientHandler redHandler, blueHandler;
-    private final GameManager gm;
+
+    private final ClientHandler redHandler, blueHandler; // Handlers for each player
+    private final GameManager gm; // Game logic controller
 
     public GameSession(ClientHandler a, ClientHandler b) {
         this.redHandler = a;
@@ -28,53 +27,59 @@ public class GameSession implements Runnable {
     public void run() {
         try {
             System.out.println("[GameSession] Session started.");
-            redHandler.send("MATCHED:red");
-            blueHandler.send("MATCHED:blue");
-            Thread.sleep(500);
+            redHandler.send("MATCHED:red"); // Inform red client they are matched
+            blueHandler.send("MATCHED:blue"); // Inform blue client they are matched
+            Thread.sleep(500); // Wait a moment before starting
 
-            // Start listener threads for each client
+            // Start listening to each client in separate threads
             new Thread(() -> listenToClient(redHandler, redQueue)).start();
             new Thread(() -> listenToClient(blueHandler, blueQueue)).start();
 
+            // Main game loop
             while (!gm.checkWin()) {
                 Player current = gm.getCurrentPlayer();
                 ClientHandler currentHandler = current.getColor().equals("red") ? redHandler : blueHandler;
                 ClientHandler opponentHandler = currentHandler == redHandler ? blueHandler : redHandler;
-                BlockingQueue<String> currentQueue = (currentHandler == redHandler) ? redQueue : blueQueue;
-                BlockingQueue<String> opponentQueue = (currentHandler == redHandler) ? blueQueue : redQueue;
+                BlockingQueue<String> currentQueue = currentHandler == redHandler ? redQueue : blueQueue;
+                BlockingQueue<String> opponentQueue = currentHandler == redHandler ? blueQueue : redQueue;
 
-                currentHandler.send("TURN:" + current.getColor());
+                currentHandler.send("TURN:" + current.getColor()); // Notify whose turn
 
-                // Wait for ROLL or EXIT
                 while (true) {
+                    // Check if opponent exited
                     String opponentMsg = opponentQueue.poll(100, TimeUnit.MILLISECONDS);
                     if ("EXIT".equals(opponentMsg)) {
                         currentHandler.send("EXIT");
                         return;
                     }
 
+                    // Read current player's message
                     String msg = currentQueue.poll(100, TimeUnit.MILLISECONDS);
-                    if (msg == null) continue;
+                    if (msg == null)
+                        continue;
 
                     if ("EXIT".equals(msg)) {
                         opponentHandler.send("EXIT");
                         return;
                     }
 
-                    if (!msg.startsWith("ROLL:")) continue;
+                    if (!msg.startsWith("ROLL:"))
+                        continue;
 
                     int roll = Integer.parseInt(msg.split(":", 2)[1]);
 
-                    // Broadcast roll
+                    // Broadcast dice roll
                     String rollMsg = "ROLL:" + current.getColor() + ":" + roll;
                     redHandler.send(rollMsg);
                     blueHandler.send(rollMsg);
 
+                    // Move player and broadcast new position
                     int dest = gm.movePlayer(roll);
                     String moveMsg = "MOVE:" + current.getColor() + ":" + dest;
                     redHandler.send(moveMsg);
                     blueHandler.send(moveMsg);
 
+                    // Check win condition
                     if (gm.checkWin()) {
                         String winMsg = "WIN:" + current.getColor();
                         redHandler.send(winMsg);
@@ -82,8 +87,9 @@ public class GameSession implements Runnable {
                         return;
                     }
 
+                    // Switch turn if roll != 6
                     if (gm.shouldSwitchTurn(roll)) {
-                        gm.switchTurn(); // Do not switch if roll == 6
+                        gm.switchTurn();
                     }
 
                     break;
@@ -103,7 +109,7 @@ public class GameSession implements Runnable {
         }
     }
 
-    /** Listens for incoming messages from a client and pushes to queue. */
+    // Continuously reads messages from a client and puts them into a queue
     private void listenToClient(ClientHandler handler, BlockingQueue<String> queue) {
         try {
             String msg;
@@ -112,8 +118,9 @@ public class GameSession implements Runnable {
             }
         } catch (IOException | InterruptedException e) {
             try {
-                queue.put("EXIT");
-            } catch (InterruptedException ignored) {}
+                queue.put("EXIT"); // Push exit signal if error occurs
+            } catch (InterruptedException ignored) {
+            }
         }
     }
 }
