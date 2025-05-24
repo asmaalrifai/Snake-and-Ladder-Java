@@ -31,10 +31,12 @@ public class GameUI {
     private final Label statusLabel = new Label();
     private final Label diceResult = new Label();
 
-    // Server address and port (modifiable from one place)
+    // Server address and port
     // private static final String SERVER_HOST = "localhost";
-    private static final String SERVER_HOST = "16.171.141.21";
+    private static final String SERVER_HOST = "52.55.8.246";
     private static final int SERVER_PORT = 40000;
+    private boolean gameHasStarted = false;
+    private boolean opponentEverPlayed = false;
 
     // Player tokens and board display
     private final ImageView player1Token = new ImageView();
@@ -149,8 +151,20 @@ public class GameUI {
         placeTokenAt(1, player2Token, false);
 
         // Networking
-        net = new NetworkClient(SERVER_HOST, SERVER_PORT, this::handleServerMessage);
-        net.send("READY");
+        try {
+            net = new NetworkClient(SERVER_HOST, SERVER_PORT, this::handleServerMessage);
+            net.send("READY");
+            isReady = true;
+            while (!earlyMessages.isEmpty()) {
+                processServerMessage(earlyMessages.poll());
+            }
+        } catch (Exception e) {
+            statusLabel.setText("Server is offline.\ntry again later.");
+            statusLabel.getStyleClass().add("exit-message");
+            playAgainButton.setDisable(false);
+            player1Roll.setDisable(true);
+            player2Roll.setDisable(true);
+        }
 
         isReady = true;
         while (!earlyMessages.isEmpty()) {
@@ -159,10 +173,16 @@ public class GameUI {
 
         stage.setOnCloseRequest(e -> {
             e.consume();
-            net.send("EXIT");
-            net.close();
-            Platform.exit();
+            if (net != null) {
+                try {
+                    net.send("EXIT");
+                    net.close();
+                } catch (Exception ignored) {
+                }
+            }
+            Platform.exit(); // Always exit the application
         });
+
     }
 
     // Configure and disable roll buttons initially. Attach action handlers.
@@ -281,7 +301,7 @@ public class GameUI {
             net.close(); // close old socket
             net = new NetworkClient(SERVER_HOST, SERVER_PORT, this::handleServerMessage); // reconnect
             net.send("READY");
-            statusLabel.setText("Waiting for\nopponent\nto replay...");
+            statusLabel.setText("Waiting for\nopponent\nto play...");
         });
 
         // Group and return the buttons in a layout
@@ -338,6 +358,7 @@ public class GameUI {
                     // Assign color from server and start game
                     yourColor = parts[1];
                     statusLabel.setText("Matched! You are: " + yourColor);
+                    gameHasStarted = true;
                     startGame();
                     playAgainButton.setDisable(true); // disable play again during match
 
@@ -354,6 +375,10 @@ public class GameUI {
                     player2Roll.setDisable(!(myTurn && "blue".equals(yourColor)));
                     statusLabel.setText("You're: " + parts[1]);
                     isRolling = false; // allow next roll
+
+                    if (!myTurn) {
+                        opponentEverPlayed = true;
+                    }
                 }
 
                 case "ROLL" -> {
@@ -365,6 +390,10 @@ public class GameUI {
                             .getResource("/" + (color.equals("red") ? RED_DICE_PATH : BLUE_DICE_PATH) + val + ".png")
                             .toExternalForm()));
                     diceResult.setText((color.equals("red") ? "Red" : "Blue") + " rolled: " + val);
+
+                    if (!parts[1].equals(yourColor)) {
+                        opponentEverPlayed = true; // ✅ Opponent rolled
+                    }
                 }
 
                 case "MOVE" -> {
@@ -406,12 +435,19 @@ public class GameUI {
                 }
 
                 case "EXIT" -> {
-                    // Handle opponent disconnection
                     statusLabel.setText("Your opponent\nhas exited.\nGame over.");
                     statusLabel.getStyleClass().add("exit-message");
                     player1Roll.setDisable(true);
                     player2Roll.setDisable(true);
-                    playAgainButton.setDisable(false); // Enable replay
+                    playAgainButton.setDisable(false); // Always enable manually
+
+                    if (!opponentEverPlayed) {
+                        Platform.runLater(() -> {
+                            statusLabel.getStyleClass().remove("exit-message");
+                            statusLabel.setText("Waiting for\nanother player...");
+                            playAgainButton.fire();
+                        });
+                    }
                 }
             }
         });
@@ -500,7 +536,7 @@ public class GameUI {
         else if (board.getSnakes().containsKey(from) && board.getSnakes().get(from) == to) {
             label.setText("Snake: " + from + " → " + to);
         } else {
-            // Reverse lookup in case 'to' is only provided (no intermediate jump shown)
+            // Reverse lookup in case 'to' is only provided
             if (board.getLadders().containsValue(to)) {
                 for (var entry : board.getLadders().entrySet()) {
                     if (entry.getValue() == to) {

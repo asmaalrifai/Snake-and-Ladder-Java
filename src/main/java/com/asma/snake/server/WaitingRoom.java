@@ -9,7 +9,8 @@ public class WaitingRoom {
 
     // Adds a client to the queue and starts a game if two are ready
     public static void enqueue(ClientHandler handler) {
-        if (handler.isClosed()) return;
+        if (handler.isClosed())
+            return;
 
         queue.offer(handler); // Add client to the queue
 
@@ -17,15 +18,30 @@ public class WaitingRoom {
             ClientHandler a = queue.poll();
             ClientHandler b = queue.poll();
 
-            // Check for valid, connected clients
-            if (a == null || b == null || a.isClosed() || b.isClosed()) {
-                if (a != null && !a.isClosed()) queue.offer(a); // Requeue if still valid
-                if (b != null && !b.isClosed()) queue.offer(b);
+            // Check for valid, connected clients by pinging the socket
+            if (a == null || !isAlive(a)) {
+                if (a != null)
+                    a.close(); // Cleanup
+                if (b != null && isAlive(b))
+                    queue.offer(b);
                 continue;
             }
 
-            // Start a new game session in a new thread
+            if (b == null || !isAlive(b)) {
+                if (b != null)
+                    b.close();
+                if (a != null && isAlive(a))
+                    queue.offer(a);
+                continue;
+            }
+
             new Thread(new GameSession(a, b)).start();
         }
+
     }
+
+    private static boolean isAlive(ClientHandler handler) {
+        return handler != null && !handler.isClosed();
+    }
+
 }
